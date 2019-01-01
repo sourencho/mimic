@@ -29,6 +29,8 @@ start_level = 0
 debug_mode = false
 debug = "DEBUG\n"
 
+show_trail = true
+
 -- spr numbers
 fish_spr = 194
 sheep_spr = 196
@@ -108,6 +110,7 @@ npcs = {
     },
 }
 
+-- death
 dying = {}
 dead = {}
 
@@ -124,6 +127,41 @@ player_sfx.move[cloud]=16
 player_sfx.transform=2
 die_sfx=8
 change_pattern_sfx = 10
+
+-- particles
+particles = {
+    --SCHEMA
+    --{
+    --    pos = {x, y},
+    --    col = c,
+    --    draw_fn = foobar(pos, curr_tick, start_tick, end_tick),
+    --    start_tick = 0,
+    --    end_tick = 0,
+    --}
+}
+
+
+-->8
+-- particles
+
+function create_trail(pos, col)
+    if (not show_trail) return
+
+    trail = {
+        pos = pos,
+        col = col,
+        draw_fn = draw_trail,
+        start_tick = tick,
+        end_tick = tick + slow_speed * 5,
+    }
+    add(particles, trail)
+end
+
+function draw_trail(pos, col, curr_tick, start_tick, end_tick)
+    rectfill(pos[1] + 3, pos[2] + 3, pos[1] + 4, pos[2] + 4, col)
+end
+
+
 
 -->8
 -- util
@@ -151,6 +189,17 @@ function pair_equal(a, b)
     else
         return false
     end
+end
+
+function get_spr_col(spr_n)
+    local spr_page = flr(spr_n / 64)
+    local spr_row = flr((spr_n % 64) / 16)
+    local spr_col = (spr_n % 64) % 16
+
+    local spr_x = spr_col * 8
+    local spr_y = (spr_page * 32) + (spr_row * 8)
+
+    return sget(spr_x + 4, spr_y + 4)
 end
 
 
@@ -196,8 +245,8 @@ function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities)
 end
 
 function is_tile(tile_class,x,y)
-    if x < 0 or x > level_size or
-       y < 0 or y > level_size then
+    if x < 0 or x >= level_size or
+       y < 0 or y >= level_size then
         return false
     end
 
@@ -329,10 +378,11 @@ function npc_input()
                     move = npc_get_move(a)
                     if pair_equal(move, {0,0}) then
                         npc_die(a)
-                    else 
+                    else
                         a.dx = move[1]
                         a.dy = move[2]
                         a.last_move = move
+                        create_trail({a.x*8, a.y*8}, get_spr_col(a.spr))
                     end
                 end
             end
@@ -349,7 +399,7 @@ end
 function update_dying(a)
     a.t += 1
     if a.t == dying_time then
-        add(dead, a) 
+        add(dead, a)
     end
 end
 
@@ -370,7 +420,6 @@ function update_pattern(a, new_move)
     -- effects
     sfx(change_pattern_sfx)
     a.confused = 1
-    debug_log("a")
 end
 
 function update_actor(a)
@@ -385,8 +434,6 @@ function update_actor(a)
                 maybe_push(new_x, new_y, a.dx, a.dy)
             end
         end
-
-        if (not is_player(a)) debug_log("b")
 
         if (a.confused == 2) a.confused = 0
         if (a.confused == 1) a.confused += 1
@@ -424,6 +471,19 @@ function update_actors()
     foreach(actors, update_actor)
 end
 
+function update_particles()
+    remove = {}
+    for p in all(particles) do
+        if (p.end_tick < tick) then
+            add(remove, p)
+        end
+    end
+
+    for p in all(remove) do
+        del(particles, p)
+    end
+end
+
 function update_dyings()
     foreach(dying, update_dying)
 end
@@ -449,7 +509,7 @@ function is_stuck()
 end
 
 function no_npc()
-    return #actors == 1 
+    return #actors == 1
 end
 
 -->8
@@ -469,12 +529,23 @@ function init_player(l)
     reset_player_pattern()
 end
 
+function debug_stuff()
+--    p = {
+--        pos = {8, 8},
+--        draw_fn = draw_spark,
+--        curr_tick = tick,
+--        start_tick = tick,
+--        end_tick = 100,
+--    }
+--    add(particles, p)
+end
+
 function player_input()
     if (btnp(0)) pl.dx = -1
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
-    -- if (btnp(4)) splash = not splash
+    if (btnp(4)) show_trail = not show_trail
     if (btnp(5)) then
         if splash then
             splash = not splash
@@ -636,10 +707,12 @@ function init_level(l)
     actors = {}
     dying = {}
     dead = {}
+    particles={}
     level = l
     init_tiles(l)
     init_actors(l)
     init_player(l)
+    debug_stuff()
 end
 
 -- Loads in level by populating 2d array of tiles `level_tiles`
@@ -739,9 +812,17 @@ function draw_dying(a)
     print("!", a.x*8 + 4, a.y*8 + 1, 8)
 end
 
+function draw_particle(p)
+    p.draw_fn(p.pos, p.col, p.curr_tick, p.start_tick, p,end_tick)
+end
+
 function draw_actors()
     foreach(actors, draw_actor)
     foreach(dying, draw_dying)
+end
+
+function draw_particles()
+    foreach(particles, draw_particle)
 end
 
 function draw_ui()
@@ -797,6 +878,7 @@ function _update()
     end
     npc_input()
     update_actors()
+    update_particles()
     -- update_dyings()
     -- update_dead()
     mimic()
@@ -813,6 +895,7 @@ function _draw()
             draw_level_splash(level)
         else
             draw_level()
+            draw_particles()
             draw_actors()
             draw_ui()
             if (debug_mode) draw_debug()
