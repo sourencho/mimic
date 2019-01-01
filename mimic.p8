@@ -29,7 +29,7 @@ start_level = 0
 debug_mode = false
 debug = "DEBUG\n"
 
-show_trail = true
+show_trail = false
 
 -- spr numbers
 fish_spr = 194
@@ -153,13 +153,13 @@ function create_trail(a)
 
     local draw_fn
     if a.dx == 1 then
-        draw_fn = draw_trail_right
+        draw_fn = draw_trail_right_box
     elseif a.dx == -1 then
-        draw_fn = draw_trail_left
+        draw_fn = draw_trail_left_box
     elseif a.dy == 1 then
-        draw_fn = draw_trail_down
+        draw_fn = draw_trail_down_box
     elseif a.dy == -1 then
-        draw_fn = draw_trail_up
+        draw_fn = draw_trail_up_box
     end
 
     local frame_len = #a.pattern - 1
@@ -208,6 +208,21 @@ function draw_trail_left(pos, col, curr_tick, start_tick, end_tick)
     line(pos[1] + 2, pos[2] + 5, col)
 end
 
+function draw_trail_up_box(pos, col, curr_tick, start_tick, end_tick)
+    rectfill(pos[1] + 2, pos[2] + 1, pos[1] + 3, pos[2] + 2, col)
+end
+
+function draw_trail_down_box(pos, col, curr_tick, start_tick, end_tick)
+    rectfill(pos[1] + 4, pos[2] + 5, pos[1] + 5, pos[2] + 6, col)
+end
+
+function draw_trail_right_box(pos, col, curr_tick, start_tick, end_tick)
+    rectfill(pos[1] + 5, pos[2] + 2, pos[1] + 6, pos[2] + 3, col)
+end
+
+function draw_trail_left_box(pos, col, curr_tick, start_tick, end_tick)
+    rectfill(pos[1] + 1, pos[2] + 4, pos[1] + 2, pos[2] + 5, col)
+end
 
 
 -->8
@@ -491,6 +506,10 @@ function update_actor(a)
 
         -- move
         if can_move(new_x, new_y, a) then
+            if is_player(a) then
+                save_player_move(a)
+            end
+
             a.x = new_x
             a.y = new_y
 
@@ -573,11 +592,23 @@ player_pattern_size = 10 -- must be 1 longer than the max npc pattern length
 player_move_abilities = {ground, win}
 player_push_abilities = {rock_small, tree_small}
 
+player_trail={
+    --SCHEMA
+    --{
+    --    from_x,
+    --    from_y,
+    --    dx,
+    --    dy
+    --}
+}
+player_trail_index = 0
+
 function init_player(l)
     local player_pos = find_sprite(l, player_spr)
     pl = make_actor(
         player_pos[1], player_pos[2], player_spr, {}, player_move_abilities, player_push_abilities)
     reset_player_pattern()
+    reset_player_trail()
 end
 
 function debug_stuff()
@@ -613,6 +644,14 @@ function reset_player_pattern()
     end
 end
 
+function reset_player_trail()
+    player_trail={}
+    for i=1,6 do
+        add(player_trail, {-1,-1,0,0})
+    end
+    player_trail_index = 0
+end
+
 function play_player_sfx(action)
     if(action == "move") then
         sfx(player_sfx[action][pl.move_abilities[1]])
@@ -641,6 +680,19 @@ function update_player(p)
     end
     player_pattern[player_pattern_i][1] = p.dx;
     player_pattern[player_pattern_i][2] = p.dy;
+end
+
+function save_player_move(p)
+    if p.dx != 0 or p.dy != 0 then
+        local move = {
+            from_x = p.x,
+            from_y = p.y,
+            dx = p.dx,
+            dy = p.dy,
+        }
+        player_trail[player_trail_index % #player_trail + 1] = move
+        player_trail_index += 1
+    end
 end
 
 -->8
@@ -876,6 +928,27 @@ function draw_particles()
     foreach(particles, draw_particle)
 end
 
+function draw_player_trail()
+    if (not show_trail) return
+
+    for m in all(player_trail) do
+        local draw_fn
+        if m.dx == 1 then
+            draw_fn = draw_trail_right_box
+        elseif m.dx == -1 then
+            draw_fn = draw_trail_left_box
+        elseif m.dy == 1 then
+            draw_fn = draw_trail_down_box
+        elseif m.dy == -1 then
+            draw_fn = draw_trail_up_box
+        else
+            return
+        end
+
+        draw_fn({m.from_x * 8, m.from_y * 8}, 7)
+    end
+end
+
 function draw_ui()
     if is_stuck() or no_npc() then
         print(stuck_text, hcenter(stuck_text), vcenter(stuck_text), 7)
@@ -947,6 +1020,7 @@ function _draw()
         else
             draw_level()
             draw_particles()
+            draw_player_trail()
             draw_actors()
             draw_ui()
             if (debug_mode) draw_debug()
