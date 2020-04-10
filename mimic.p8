@@ -1,13 +1,18 @@
 pico-8 cartridge // http://www.pico-8.com
 version 18
 __lua__
+
+x = 0
+
 function _init()
 end
 
 function _update()
+    x = x + 1
 end
 
 function _draw()
+    print(x)
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
