@@ -1,35 +1,71 @@
 pico-8 cartridge // http://www.pico-8.com
 version 18
 __lua__
-player={
-	x = 0,
-	y = 0
-}
 
-function find_player()
-	for i=0,16 do
+-- globals 
+player_spr = 3
+actors = {}
+
+function make_actor(x, y, spr_n)
+    a={}
+    a.x = x
+    a.y = y
+    a.dx = 0
+    a.dy = 0
+    a.spr = spr_n
+    a.frame = 0
+    a.t = 0
+    a.frames = 1
+
+    add(actors,a)
+    return a
+end
+
+function move_actor(a)
+    a.x += a.dx
+    a.y += a.dy
+    a.dx = 0
+    a.dy = 0
+    a.t += 1
+end
+
+function draw_actor(a)
+    spr(a.spr + a.frame, a.x*8, a.y*8)
+end
+
+function control_player()
+    if (btn(0)) pl.dx = -1
+    if (btn(1)) pl.dx = 1
+    if (btn(2)) pl.dy = -1 
+    if (btn(3)) pl.dy = 1 
+end
+
+function find_player(spr_n)
+    for i=0,16 do
 		for j=0,16 do
-			sprite_no=mget(i,j)
-			if sprite_no == 3 then
-				player.x = i
-				player.y = j
+			if mget(i,j) == spr_n then
+				return i, j
 			end
 		end
 	end
 end
 
 function _init()
-	find_player()
+	local x, y = find_player(player_spr)
+    pl = make_actor(x, y, player_spr)
 end
 
 function _update()
+    control_player()
+    foreach(actors, move_actor)
 end
 
 function _draw()
-   cls()
-   map(0,0,0,0,16,16)
-   print(player.x..player.y,64,64)
+    cls()
+    map(0,0,0,0,16,16)
+    foreach(actors, draw_actor)
 end
+
 __gfx__
 0000000000000000cccccccc00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000008080000cccccccc0fffff000000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
