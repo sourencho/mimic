@@ -1,5 +1,7 @@
 # mimic
 
+![demo](images/demo.gif)
+
 ## Game world constraints
 
 - Shouldn't be able to move over an actor
