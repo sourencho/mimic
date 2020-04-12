@@ -27,17 +27,17 @@ turtle_pattern = {
     {1, 0}, {1, 0}, {1, 0}}
 worm_pattern = {
     {1, 0}, {1, 0}, {1, 0},
-    {-1, 0}, {-1, 0}, {-1, 0}}
-butter_pattern = {
+    {0, -1}, {0, -1}, {0, -1},
     {-1, 0}, {-1, 0}, {-1, 0},
-    {1, 0}, {1, 0}, {1, 0},
-    {-1, 0}, {-1, 0}, {-1, 0}, 
-    {1, 0}, {1, 0}, {1, 0}}
+    {0, 1}, {0, 1}, {0, 1}}
+butter_pattern = {
+    {0, 1}, {0, 1},
+    {0, -1}, {0, -1}}
 
 -- player pattern
 player_pattern = {}
 player_pattern_i = 0
-player_pattern_size = 24
+player_pattern_size = 13 -- must be 1 longer than the max npc pattern length
 
 function make_actor(x, y, spr_n, pattern)
     a={}
@@ -86,7 +86,7 @@ function move_actor(a)
         a.x += a.dx
         a.y += a.dy
 
-        if is_player then 
+        if is_player and (a.dx ~=0 or a.dy ~= 0) then 
             -- save player pattern
             player_pattern_i += 1        
             if player_pattern_i > player_pattern_size then
@@ -124,7 +124,7 @@ function pattern_match()
         local is_player = (#a.pattern == 0)
         if not is_player then
             if contains_pattern(player_pattern, a.pattern) then
-                pl.spr = 1
+                pl.spr = a.spr
             end
         end
     end
