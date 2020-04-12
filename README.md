@@ -14,7 +14,7 @@
 - [x] Handle map collision - Nana/Souren
 - [ ] Flip sprite up or down (vertical) - Unnati
 - [X] Non-player actor movement (preconfigured movements) - Souren
-- [ ] Taking over other actor's ability to move over tiles - Souren
+- [ ] Taking over other actor's ability to move over tiles (https://github.com/SourenP/mimic/pull/2) - Souren
 - [ ] Winning mechanic(retrieving diamond should cause you to win)
 - [ ] Level design - Souren/Nan/Unnati
 - [ ] Level navigation/loading - Souren/Nana/Unnati
