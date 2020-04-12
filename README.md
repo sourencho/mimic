@@ -11,7 +11,7 @@
 
 - [x] [Unnati] Player Movement
 - [ ] [Nana/Souren] Handle actor collision
-- [ ] [Nana/Souren] Handle map collision
+- [x] [Nana/Souren] Handle map collision ([pull-3](https://github.com/SourenP/mimic/pull/3))
 - [ ] [Unnati] Flip sprite up or down on vertical movement
 - [x] [Souren] Non-player actor movement ([pull-1](https://github.com/SourenP/mimic/pull/1))
 - [x] [Souren] Taking over non-player actor ability ([pull-2](https://github.com/SourenP/mimic/pull/2))
