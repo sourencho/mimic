@@ -1,6 +1,6 @@
 # mimic
 
-![demo](images/demo.gif)
+![demo3](images/demo3.gif)
 
 ## Game world constraints
 
@@ -10,7 +10,6 @@
 ## TODO
 
 - [x] [Unnati] Player Movement
-- [ ] [Nana/Souren] Handle actor collision
 - [x] [Nana/Souren] Handle map collision ([pull-3](https://github.com/SourenP/mimic/pull/3))
 - [ ] [Unnati] Flip sprite up or down on vertical movement
 - [x] [Souren] Non-player actor movement ([pull-1](https://github.com/SourenP/mimic/pull/1))
@@ -20,3 +19,4 @@
 - [ ] [Souren/Nan/Unnati] Level design
 - [ ] [Souren/Nana/Unnati] Level navigation/loading
 - [ ] [Nana] Game music
+- [ ] [Souren] Restart button for when stuck you're stuck
