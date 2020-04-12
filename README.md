@@ -9,13 +9,14 @@
 
 ## TODO
 
-- [x] Player Movement - Unnati
-- [x] Handle actor collision - Nana/Souren
-- [x] Handle map collision - Nana/Souren
-- [ ] Flip sprite up or down (vertical) - Unnati
-- [X] Non-player actor movement (preconfigured movements) - Souren
-- [ ] Taking over other actor's ability to move over tiles (https://github.com/SourenP/mimic/pull/2) - Souren
-- [ ] Winning mechanic(retrieving diamond should cause you to win)
-- [ ] Level design - Souren/Nan/Unnati
-- [ ] Level navigation/loading - Souren/Nana/Unnati
-- [ ] Game music - Nana
+- [x] [Unnati] Player Movement
+- [x] [Nana/Souren] Handle actor collision
+- [x] [Nana/Souren] Handle map collision
+- [ ] [Unnati] Flip sprite up or down on vertical movement
+- [X] [Souren] Non-player actor movement ([pull-1](https://github.com/SourenP/mimic/pull/1))
+- [ ] [Souren] Taking over non-player actor ability ([pull-2](https://github.com/SourenP/mimic/pull/2))
+- [ ] Winning mechanic
+  - Retrieving diamond should cause you to win
+- [ ] [Souren/Nan/Unnati] Level design
+- [ ] [Souren/Nana/Unnati] Level navigation/loading
+- [ ] [Nana] Game music
