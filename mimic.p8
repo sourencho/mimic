@@ -3,7 +3,9 @@ version 18
 __lua__
 
 -- settings
-slow_speed = 14
+slow_speed = 14 -- the larger the slower the npcs move
+
+-- constants
 tick = 0
 actors = {}
 
@@ -19,9 +21,9 @@ turtle_pos = {10, 3}
 worm_pos = {3, 14}
 butter_pos = {10, 12}
 
--- move patterns
+-- npc patterns
 turtle_pattern = {
-    {-1, 0}, {-1, 0}, {-1, 0}, 
+    {-1, 0}, {-1, 0}, {-1, 0},
     {1, 0}, {1, 0}, {1, 0}}
 worm_pattern = {
     {1, 0}, {1, 0}, {1, 0},
@@ -29,8 +31,13 @@ worm_pattern = {
     {-1, 0}, {-1, 0}, {-1, 0},
     {0, 1}, {0, 1}, {0, 1}}
 butter_pattern = {
-    {-1, 0}, {-1, 0}, {-1, 0}, 
-    {1, 0}, {1, 0}, {1, 0}}
+    {0, 1}, {0, 1},
+    {0, -1}, {0, -1}}
+
+-- player pattern
+player_pattern = {}
+player_pattern_i = 0
+player_pattern_size = 13 -- must be 1 longer than the max npc pattern length
 
 function make_actor(x, y, spr_n, pattern)
     a={}
@@ -61,19 +68,33 @@ function valid_position(x, y, a)
 end
 
 function move_actor(a)
-    print(#a.pattern)
-    if a.dx == 0 and a.dy == 0 and #a.pattern != 0 then
-        if tick % slow_speed == 0 then
-            local move = a.pattern[(a.t % #a.pattern) + 1]
-            a.dx = move[1]
-            a.dy = move[2]
-            a.t += 1
+    local is_player = (#a.pattern == 0)
+
+    if not is_player then 
+        -- apply npc pattern
+        if a.dx == 0 and a.dy == 0 then
+            if tick % slow_speed == 0 then
+                local move = a.pattern[(a.t % #a.pattern) + 1]
+                a.dx = move[1]
+                a.dy = move[2]
+                a.t += 1
+            end
         end
     end
 
     if valid_position(a.x + a.dx, a.y + a.dy) then
         a.x += a.dx
         a.y += a.dy
+
+        if is_player and (a.dx ~=0 or a.dy ~= 0) then 
+            -- save player pattern
+            player_pattern_i += 1        
+            if player_pattern_i > player_pattern_size then
+                player_pattern_i = 1
+            end
+            player_pattern[player_pattern_i][1] = a.dx;
+            player_pattern[player_pattern_i][2] = a.dy;
+        end
     end
 
     -- animation
@@ -98,6 +119,32 @@ function player_input()
     if (btnp(3)) pl.dy = 1
 end
 
+function pattern_match()
+    for a in all(actors) do
+        local is_player = (#a.pattern == 0)
+        if not is_player then
+            if contains_pattern(player_pattern, a.pattern) then
+                pl.spr = a.spr
+            end
+        end
+    end
+end
+
+function contains_pattern(sup_pattern, sub_pattern)
+    local sup_len = #sup_pattern
+    local sub_len = #sub_pattern
+    for i=1,sup_len do
+        local out = true
+        for j=1,sub_len do
+            local sup_move = sup_pattern[((i+j-1) % sup_len) + 1]
+            local sub_move = sub_pattern[j]
+            out = out and (sup_move[1] == sub_move[1] and sup_move[2] == sub_move[2]) 
+        end
+        if out then return true end
+    end
+    return false
+end
+
 function find_player(spr_n)
     for i=0,16 do
 		for j=0,16 do
@@ -111,9 +158,16 @@ function find_player(spr_n)
 	end
 end
 
+function init_player_pattern() 
+    for i=0,player_pattern_size do
+        add(player_pattern, {0,0})
+    end
+end
+
 function _init()
 	-- local x, y = find_player(player_spr)
     pl = make_actor(player_pos[1], player_pos[2], player_spr, {}) -- player
+    init_player_pattern()
     make_actor(turtle_pos[1], turtle_pos[2], turtle_spr, turtle_pattern)
     make_actor(worm_pos[1], worm_pos[2], worm_spr, worm_pattern)
     make_actor(butter_pos[1], butter_pos[2], butter_spr, butter_pattern)
@@ -122,6 +176,7 @@ end
 function _update()
     player_input()
     foreach(actors, move_actor)
+    pattern_match()
     tick += 1
 end
 
