@@ -1,6 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 18
 __lua__
+--DATA
 
 -- settings
 slow_speed = 14 -- the larger the slower the npcs move
@@ -38,6 +39,12 @@ butter_pattern = {
 player_pattern = {}
 player_pattern_i = 0
 player_pattern_size = 13 -- must be 1 longer than the max npc pattern length
+
+
+
+
+-->8
+-- MAP
 
 function make_actor(x, y, spr_n, pattern)
     a={}
@@ -112,12 +119,43 @@ function draw_actor(a)
     spr(a.spr + a.frame, a.x*8, a.y*8, 1, 1, a.flip_x)
 end
 
+
+
+
+-->8
+--PLAYER
+
 function player_input()
     if (btnp(0)) pl.dx = -1
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
 end
+
+function find_player(spr_n)
+    for i=0,16 do
+		for j=0,16 do
+			if mget(i,j) == spr_n then
+                -- todo: erase player from map if possible
+                -- or find another solution for agent positions
+                -- maybe a second layer of the map or define in code?
+				return i, j
+			end
+		end
+	end
+end
+
+function init_player_pattern() 
+    for i=0,player_pattern_size do
+        add(player_pattern, {0,0})
+    end
+end
+
+
+
+
+-->8
+--GAME MECHANIC
 
 function pattern_match()
     for a in all(actors) do
@@ -145,24 +183,11 @@ function contains_pattern(sup_pattern, sub_pattern)
     return false
 end
 
-function find_player(spr_n)
-    for i=0,16 do
-		for j=0,16 do
-			if mget(i,j) == spr_n then
-                -- todo: erase player from map if possible
-                -- or find another solution for agent positions
-                -- maybe a second layer of the map or define in code?
-				return i, j
-			end
-		end
-	end
-end
 
-function init_player_pattern() 
-    for i=0,player_pattern_size do
-        add(player_pattern, {0,0})
-    end
-end
+
+
+-->8
+-- GAME LOOP
 
 function _init()
 	-- local x, y = find_player(player_spr)
