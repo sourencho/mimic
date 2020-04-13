@@ -7,12 +7,14 @@ __lua__
 slow_speed = 14 -- the larger the slower the npcs move
 player_spr_offset = 32
 splash = true
+won = false
 splash_inst_1 = "mimic animal pattern"
 splash_inst_2 = "to take its form"
 splash_keys_1 = "move"
 splash_keys_2 = "\139\145\148\131"
 splash_keys_3 = "restart"
 splash_keys_4 = "\151"
+won_text = "★ you win ★"
 
 -- sprites
 player_spr = 3
@@ -26,7 +28,7 @@ water = 1
 rock = 2
 win = 3
 ground = 4
-tiles = {tree, water, rock, win, ground}
+tiles = {tree, water, rock, ground}
 
 -- start positions
 player_pos = {1, 14}
@@ -111,6 +113,10 @@ function has_ability(a, tile_ability)
 end
 
 function can_move(x, y, a)
+    if is_tile(win,x,y) then
+        won = true
+        return true
+    end
     -- if moving to flagged tile check if had ability
     for t in all(tiles) do
         if(is_tile(t,x,y) and has_ability(a,t)) then
@@ -135,7 +141,7 @@ function move_actor(a)
         end
     end
 
-    newx =  a.x + a.dx
+    newx = a.x + a.dx
     newy = a.y + a.dy
     
     if can_move(newx, newy, a) then
@@ -185,7 +191,10 @@ function player_input()
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
-    if (btnp(5)) splash = not splash
+    if (btnp(5)) then 
+        splash = not splash
+        won = false
+    end
 end
 
 function find_player(spr_n)
@@ -258,6 +267,9 @@ end
 
 function _update()
     player_input()
+    if won then 
+        return
+    end
     if splash then
         init()
     end
@@ -278,19 +290,14 @@ function _draw()
 
         print(splash_keys_3, hcenter(splash_keys_3), 95, 8)
         print(splash_keys_4, 60, 105, 8)
+    elseif won then
+        cls()
+        print(won_text, 30, vcenter(won_text), 9)
     else
         cls()
         map(0,0,0,0,16,16)
         foreach(actors, draw_actor)
     end
-
-    -- debugging area
-    -- print("is_able:"..tostr(is_able),0,0,7)
-    -- print("tile:"..mget(newx,newy),0,10,7)
-    -- print("istile:"..tostr(fget(mget(newx,newy),tree)),0,20,7)
-    -- print("ab1:"..tostr(pl.abilities[1]))
-    -- print("ab2:"..tostr(pl.abilities[2]))
-    -- print("len"..tostr(#(pl.abilities)))
 end
 
 __gfx__
