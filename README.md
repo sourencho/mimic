@@ -1,5 +1,6 @@
 # mimic
 
+![splash](images/splash.png)
 ![demo3](images/demo3.gif)
 
 ## Game world constraints
@@ -19,4 +20,4 @@
 - [ ] [Souren/Nan/Unnati] Level design
 - [ ] [Souren/Nana/Unnati] Level navigation/loading
 - [ ] [Nana] Game music
-- [ ] [Souren] Restart button for when stuck you're stuck
+- [x] [Souren] Restart button for when stuck you're stuck
