@@ -7,6 +7,7 @@ __lua__
 slow_speed = 14 -- the larger the slower the npcs move
 player_spr_offset = 32
 
+
 -- sprites
 player_spr = 3
 turtle_spr = 5
@@ -19,7 +20,7 @@ water = 1
 rock = 2
 win = 3
 ground = 4
-tiles = {tree, water, rock, win, ground}
+movement_tiles = {tree, water, rock, ground} --excluding win and ground?
 
 -- start positions
 player_pos = {1, 14}
@@ -94,11 +95,17 @@ end
 
 function can_move(x, y, a)
     -- if moving to flagged tile check if had ability
-    for t in all(tiles) do
+    for t in all(movement_tiles) do
         if(is_tile(t,x,y) and has_ability(a,t)) then
             return true
         end
     end
+    
+    -- if game state tile
+    if(is_tile(win,x,y)) then
+        return true
+    end
+
     return false
 end
 
@@ -169,19 +176,6 @@ function player_input()
     if (btnp(3)) pl.dy = 1
 end
 
-function find_player(spr_n)
-    for i=0,16 do
-		for j=0,16 do
-			if mget(i,j) == spr_n then
-                -- todo: erase player from map if possible
-                -- or find another solution for agent positions
-                -- maybe a second layer of the map or define in code?
-				return i, j
-			end
-		end
-	end
-end
-
 function reset_player_pattern()
     player_pattern={}
     for i=0,player_pattern_size do
@@ -220,10 +214,32 @@ function contains_pattern(sup_pattern, sub_pattern)
     return false
 end
 
+-- win/lose mechanic
+function check_win_lose()
+    if(is_tile(win, pl.x, pl.y)) then
+        game_win=true
+        game_over=true -- for checking lose state
+    end
+end
+
+function draw_win_lose()
+	camera()
+	if (game_win) then
+		print("★ you win! ★",37,64,7)
+	else
+		print("game over! :)",38,64,6)
+	end
+	print("press ❎ to play again",20,72,5)
+end
+
 -->8
 -- GAME LOOP
 
 function _init()
+    -- game state
+    game_win=false
+    game_over=false
+
     tick = 0
     actors = {}
     init_player()
@@ -233,24 +249,34 @@ function _init()
 end
 
 function _update()
-    player_input()
-    foreach(actors, move_actor)
-    pattern_match()
-    tick += 1
+    if(not game_over) then
+        player_input()
+        foreach(actors, move_actor)
+        pattern_match()
+        tick += 1
+        check_win_lose()
+    else
+        if(btnp(4)) extcmd("reset") --reset game on button press
+    end
 end
 
 function _draw()
     cls()
-    map(0,0,0,0,16,16)
-    foreach(actors, draw_actor)
 
-    -- debugging area
-    -- print("is_able:"..tostr(is_able),0,0,7)
-    -- print("tile:"..mget(newx,newy),0,10,7)
-    -- print("istile:"..tostr(fget(mget(newx,newy),tree)),0,20,7)
-    -- print("ab1:"..tostr(pl.abilities[1]))
-    -- print("ab2:"..tostr(pl.abilities[2]))
-    -- print("len"..tostr(#(pl.abilities)))
+    if(not game_over) then
+        map(0,0,0,0,16,16)
+        foreach(actors, draw_actor)
+
+        -- debugging area
+        -- print("is_able:"..tostr(is_able),0,0,7)
+        -- print("tile:"..mget(newx,newy),0,10,7)
+        -- print("istile:"..tostr(fget(mget(newx,newy),tree)),0,20,7)
+        -- print("ab1:"..tostr(pl.abilities[1]))
+        -- print("ab2:"..tostr(pl.abilities[2]))
+        -- print("len"..tostr(#(pl.abilities)))
+    else
+        draw_win_lose()
+    end
 end
 
 __gfx__
