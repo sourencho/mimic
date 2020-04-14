@@ -9,6 +9,7 @@ Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse)
 
 ### Todo
 
+- [ ] Add instruction that you win by getting to the golden diamond
 - [ ] Remind of restart button when player stuck
 - [ ] Add level system and more levels
 - [ ] Add music
