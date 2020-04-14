@@ -1,6 +1,5 @@
 # mimic
-
-PICO-8 tile based puzzle game made during a Recurse Center game jam.
+Tile based puzzle game made on PICO-8 during a Recurse Center game jam.
 
 [Play here!](https://www.lexaloffle.com/bbs/?tid=37345)
 
