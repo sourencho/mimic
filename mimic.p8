@@ -11,8 +11,7 @@ splash_inst_1 = "mimic animal movement"
 splash_inst_2 = "pattern to take its form"
 splash_keys_1 = "move"
 splash_keys_2 = "\139\145\148\131"
-splash_keys_3 = "restart"
-splash_keys_4 = "\151"
+splash_keys_3 = "menu      reset"
 won_text = "★ you win ★"
 level_size = 16
 level_count = 2
@@ -220,9 +219,8 @@ function player_input()
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
-    if (btnp(5)) then 
-        splash = not splash
-    end
+    if (btnp(4)) splash = not splash
+    if (btnp(5)) change_level = level
 end
 
 function reset_player_pattern()
@@ -281,7 +279,7 @@ function find_sprite(l, spr_n)
     print(">"..l)
     for i=0,level_size do
 		for j=0,level_size do
-			if get_sprite(i,j,l) == spr_n then 
+			if get_sprite(i,j,l) == spr_n then
 				return {i, j}
 			end
 		end
@@ -294,15 +292,19 @@ end
 
 function draw_splash()
     cls() 
-    map(0,48,0,0,16,16)
-    print(splash_inst_1, hcenter(splash_inst_1), 45, 3)
-    print(splash_inst_2, hcenter(splash_inst_2), 55, 3)
-
-    print(splash_keys_1, hcenter(splash_keys_1), 70, 8)
-    print(splash_keys_2, 48, 80, 8)
 
     print(splash_keys_3, hcenter(splash_keys_3), 95, 8)
-    print(splash_keys_4, 60, 105, 8)
+    print("\142", 38, 105, 8)
+    print("\151", 80, 105, 8)
+
+    if (tick % 60 > 0 and tick % 60 < 20) cls()
+
+    map(0,48,0,0,16,16)
+    print(splash_inst_1, hcenter(splash_inst_1), 35, 3)
+    print(splash_inst_2, hcenter(splash_inst_2), 45, 3)
+
+    print(splash_keys_1, hcenter(splash_keys_1), 68, 8)
+    print(splash_keys_2, 48, 78, 8)
 end
 
 function draw_won()
@@ -313,8 +315,6 @@ function draw_won()
     print(won_text, 38, vcenter(won_text), 12)
     print(won_text, 38, vcenter(won_text)+10, 13)
     print(won_text, 38, vcenter(won_text)+20, 14)
-    print(splash_keys_3, hcenter(splash_keys_3), 95, 8)
-    print(splash_keys_4, 60, 105, 8)
 end
 
 function draw_level(l)
@@ -346,7 +346,8 @@ function _init()
 end
 
 function _update()
-    if change_level == level_count then 
+    tick += 1
+    if change_level == level_count then
         return
     end
     if change_level >= 0 then
@@ -360,7 +361,6 @@ function _update()
     end
     foreach(actors, move_actor)
     pattern_match()
-    tick += 1
 end
 
 function _draw()
@@ -370,8 +370,14 @@ function _draw()
         draw_won()
     else
         cls()
-        draw_level(level)
-        foreach(actors, draw_actor)
+        if tick < 50 then
+            local level_text="level "..level
+            draw_actor(pl)
+            print(level_text, hcenter(level_text), vcenter(level_text), 1)
+        else
+            draw_level(level)
+            foreach(actors, draw_actor)
+        end
     end
 end
 
@@ -408,8 +414,6 @@ __gfx__
 01199000011990000099999000999990011990001188111111111111191888111918881100000000000000000000000000000000000000000000000000000000
 00099000000990000099999000999990000990001111111111111111118888811188888100000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000001111111111111111111888111111111100000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
