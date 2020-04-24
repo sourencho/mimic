@@ -25,3 +25,8 @@ Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse)
 - [ ] Add music
 - [ ] Redesign mimic pattern requirements
   - I think the loop only registers at one start/end position in the pattern. This forces you to do the loop more than once to transform and throws players off.
+  
+### Resources
+
+- [First Steps in PICO-8: Easy Collisions with Map Tiles](http://gamedev.docrobs.co.uk/first-steps-in-pico-8-easy-collisions-with-map-tiles)
+- [How I make a dependency graph](https://www.patreon.com/posts/how-i-make-graph-20631617)
