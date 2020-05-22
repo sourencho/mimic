@@ -21,7 +21,7 @@ Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse)
 
 - [ ] Add instruction that you win by getting to the golden diamond
 - [ ] Remind of restart button when player stuck
-- [ ] Add level system and more levels
+- [X] Add level system and more levels
 - [ ] Add music
 - [ ] Redesign mimic pattern requirements
   - I think the loop only registers at one start/end position in the pattern. This forces you to do the loop more than once to transform and throws players off.
