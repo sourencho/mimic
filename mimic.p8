@@ -135,6 +135,10 @@ function move_actor(a)
     newy = a.y + a.dy
     
     if can_move(newx, newy, a) then
+        if(is_player_and_not_stationary(a)) then
+            play_player_sfx("move")
+        end
+
         a.x = mid(0,newx,15)
         a.y = mid(0,newy,15)
         
@@ -144,10 +148,6 @@ function move_actor(a)
             return
         end
                     
-        if(is_player_and_not_stationary(a)) then
-            play_player_sfx("move")
-        end
-
         if is_player(a) and (a.dx ~=0 or a.dy ~= 0) then 
             -- save player pattern
             player_pattern_i += 1        
