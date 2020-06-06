@@ -1,5 +1,5 @@
 # mimic
-Tile based puzzle game made on PICO-8 during a Recurse Center game jam.
+A tile based puzzle game where you can transform into animals by mimicking their movement.
 
 [Play here!](https://www.lexaloffle.com/bbs/?tid=37345)
 
