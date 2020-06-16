@@ -14,6 +14,7 @@ Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse)
   - e.g. bug can eat (clear) grass tiles
 - [ ] Give certain animals special movement patterns
   - e.g. Frog that can jump over tiles that it's not able to normally walk on
+  - e.g. Bird that can fly over river (can move tree->river and river->tree but not river->river)
 - [ ] Use the environment to be able to mimic an animals movement
   - e.g. push a rock in front of an animal to change their movement into a pattern you're able to mimic
 
