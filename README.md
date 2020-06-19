@@ -17,15 +17,6 @@ Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse)
   - e.g. Bird that can fly over river (can move tree->river and river->tree but not river->river)
 - [ ] Use the environment to be able to mimic an animals movement
   - e.g. push a rock in front of an animal to change their movement into a pattern you're able to mimic
-
-### Todo
-
-- [ ] Add instruction that you win by getting to the golden diamond
-- [X] Remind of restart button when player stuck
-- [X] Add level system and more levels
-- [ ] Add music
-- [ ] Redesign mimic pattern requirements
-  - I think the loop only registers at one start/end position in the pattern. This forces you to do the loop more than once to transform and throws players off.
   
 ### Resources
 
