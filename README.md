@@ -3,7 +3,7 @@ A tile based puzzle game where you can transform into animals by mimicking their
 
 [Play here!](https://www.lexaloffle.com/bbs/?tid=37345)
 
-![demo4](images/demo4.gif)
+![demo6](images/demo6.gif)
 
 Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse) and [unna97](https://github.com/unna97)
 
@@ -17,7 +17,7 @@ Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse)
   - e.g. Bird that can fly over river (can move tree->river and river->tree but not river->river)
 - [ ] Use the environment to be able to mimic an animals movement
   - e.g. push a rock in front of an animal to change their movement into a pattern you're able to mimic
-  
+
 ### Resources
 
 - [First Steps in PICO-8: Easy Collisions with Map Tiles](http://gamedev.docrobs.co.uk/first-steps-in-pico-8-easy-collisions-with-map-tiles)
