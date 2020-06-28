@@ -19,7 +19,7 @@ won_text = "★ you win ★"
 stuck_text = "press \151 to restart"
 level_size = 16
 level_count = 4
-start_level = 3
+start_level = 0
 debug = ""
 
 -- spr numbers
