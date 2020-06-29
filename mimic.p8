@@ -27,13 +27,14 @@ fish_spr = 14
 sheep_spr = 30
 butter_spr = 23
 
--- tile flags
+-- map and tiles
 tree = 0
 water = 1
 rock = 2
 win = 3
 ground = 4
 tiles = {tree, water, rock, ground, win}
+level_tiles = {}
 
 -- actors
 npcs = {
@@ -99,7 +100,9 @@ function make_actor(x, y, spr_n, pattern, abilities)
 end
 
 function is_tile(tile_class,x,y)
-    tile=get_tile(x,y,level)
+    if (x < 0 or y > level_size) return -1
+
+    tile=level_tiles[x][y]
 
     --find out if tile sprite is member of class
     return fget(tile,tile_class)
@@ -124,7 +127,8 @@ function can_move(x, y, a)
     return false
 end
 
-function move_actor(a)
+function update_actor(a)
+    -- get actor move
     if not is_player(a) then
         -- apply npc pattern
         if a.dx == 0 and a.dy == 0 then
@@ -140,6 +144,7 @@ function move_actor(a)
     newx = a.x + a.dx
     newy = a.y + a.dy
 
+    -- move actor
     if can_move(newx, newy, a) then
         if(is_player_and_not_stationary(a)) then
             play_player_sfx("move")
@@ -148,14 +153,15 @@ function move_actor(a)
         a.x = mid(0,newx,15)
         a.y = mid(0,newy,15)
 
+        -- check player victory
         if is_player(a) and is_tile(win,a.x,a.y) then
             change_level = level + 1
             sfx(12)
             return
         end
 
+        -- save player pattern
         if is_player(a) and (a.dx ~=0 or a.dy ~= 0) then
-            -- save player pattern
             player_pattern_i += 1
             if player_pattern_i > player_pattern_size then
                 player_pattern_i = 1
@@ -170,7 +176,7 @@ function move_actor(a)
     end
 
 
-    -- animation
+    -- actor animation
     if a.dx ~= 0 or a.dy ~= 0 then
         a.frame += 1
         a.frame %= a.frames
@@ -179,6 +185,10 @@ function move_actor(a)
 
     a.dx = 0
     a.dy = 0
+end
+
+function update_actors()
+    foreach(actors, update_actor)
 end
 
 function play_player_sfx(action)
@@ -301,26 +311,51 @@ function contains_pattern(in_pattern, fit_pattern)
 end
 
 -->8
--- level
+-- level and map
 
 function init_level(l)
     tick = 0
     actors = {}
     level = l
+    init_tiles(l)
     init_actors(l)
     init_player(l)
+end
+
+-- Loads in level by populating 2d array of tiles `level_tiles`
+function init_tiles(l)
+    for i=0,level_size do
+        if level_tiles[i] == nil then
+            level_tiles[i] = {}
+        end
+        for j=0,level_size do
+            level_tiles[i][j] = get_tile(i, j, l)
+        end
+    end
 end
 
 -- Given a level number will return the (x,y) position of the sprite
 function find_sprite(l, spr_n)
     for i=0,level_size do
-           for j=0,level_size do
-                     if get_sprite(i,j,l) == spr_n then
-                            return {i, j}
-                    end
-              end
-       end
+        for j=0,level_size do
+             if get_sprite(i,j,l) == spr_n then
+                return {i, j}
+            end
+        end
+    end
     return nil
+end
+
+function get_tile(x,y,l)
+    i = x + 2*l*level_size
+    j = y
+    return mget(i,j)
+end
+
+function get_sprite(x,y,l)
+    i = x + (2*l+1)*level_size
+    j = y
+    return mget(i,j)
 end
 
 -->8
@@ -354,25 +389,38 @@ function draw_won()
     print(won_text, 38, vcenter(won_text)+20, 14)
 end
 
-function draw_level(l)
-    map(2*l*level_size, 0, 0, 0, level_size, level_size)
+function draw_level_splash(l)
+    local level_text="level "..l
+    draw_actor(pl)
+    print(level_text, hcenter(level_text), vcenter(level_text), 1)
+end
+
+function draw_level()
+    for i=0,level_size do
+        for j=0,level_size do
+            spr(level_tiles[i][j], i*8, j*8)
+        end
+    end
 end
 
 function draw_actor(a)
     spr(a.spr + a.frame, a.x*8, a.y*8, 1, 1, a.flip_x)
 end
 
-function get_tile(x,y,l)
-    i = x + 2*l*level_size
-    j = y
-    return mget(i,j)
+function draw_actors()
+    foreach(actors, draw_actor)
 end
 
-function get_sprite(x,y,l)
-    i = x + (2*l+1)*level_size
-    j = y
-    return mget(i,j)
+function draw_ui()
+    if is_stuck() then
+        print(stuck_text, hcenter(stuck_text), vcenter(stuck_text), 7)
+    end
 end
+
+function draw_debug()
+    print(debug)
+end
+
 
 -->8
 -- game loop
@@ -396,7 +444,7 @@ function _update()
     if splash then
         return
     end
-    foreach(actors, move_actor)
+    update_actors()
     pattern_match()
 end
 
@@ -408,16 +456,12 @@ function _draw()
     else
         cls()
         if tick < 50 then
-            local level_text="level "..level
-            draw_actor(pl)
-            print(level_text, hcenter(level_text), vcenter(level_text), 1)
+            draw_level_splash(level)
         else
-            draw_level(level)
-            foreach(actors, draw_actor)
-            if is_stuck() then
-                print(stuck_text, hcenter(stuck_text), vcenter(stuck_text), 7)
-            end
-            print(debug)
+            draw_level()
+            draw_actors()
+            draw_ui()
+            draw_debug()
         end
     end
 end
