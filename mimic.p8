@@ -150,19 +150,56 @@ function can_move(x, y, a)
     return false
 end
 
+function npc_get_move(a)
+    local new_x, new_y
+
+    -- Move according to pattern if possible
+    local pattern_move = a.pattern[(a.t % #a.pattern) + 1]
+    new_x = a.x + pattern_move[1]
+    new_y = a.y + pattern_move[2]
+
+    if can_move(new_x, new_y, a) then
+        return pattern_move
+    end
+
+    -- todo: remove once alternative move code is done
+    if true then
+        return {0, 0}
+    end
+
+    -- Alternative move
+    alt_moves = {{1, 0}, {0, -1}, {0, 1}, {-1, 0}}
+    for alt_move in all(alt_moves) do
+        new_x = a.x + alt_move[1]
+        new_y = a.y + alt_move[2]
+        if can_move(new_x, new_y, a) then
+            return alt_move
+        end
+    end
+
+    return {0, 0}
+end
+
 function npc_input() 
     for a in all(actors) do
         if not is_player(a) then
             -- apply npc pattern
             if a.dx == 0 and a.dy == 0 then
                 if tick % slow_speed == 0 then
-                    local move = a.pattern[(a.t % #a.pattern) + 1]
+                    move = npc_get_move(a)
                     a.dx = move[1]
                     a.dy = move[2]
-                    a.t += 1
                 end
             end
         end
+    end
+end
+
+function update_npc(a)
+    -- update npc pattern according to last move
+    if a.dx != 0 or a.dy != 0 then
+        -- a.pattern[(a.t % #a.pattern) + 1] = {a.dx, a.dy}
+        a.t += 1
     end
 end
 
@@ -180,6 +217,8 @@ function update_actor(a)
             if is_player(a) then
                 update_player(a)
                 play_player_sfx("move")
+            else
+                update_npc(a)
             end
         else
             if is_player(a) then
@@ -521,7 +560,7 @@ __gfx__
 0007700008880000000000000888888008f8f8800bb33393bb333933144144444414444111333b11115555511111111111655511115655510999999009999990
 007007000080000000000000088888800888888000033933003393331ff14444ff14444113b33331155556511111111115555611165555110099909000999090
 00000000000000000000000000888800008888000000333000033330111141141114114113333331156555511111111116555551155555610000000000000000
-00000000000000000000000000000000000000000000b00b00b0000b1111f11f1114f14f11144111111111111111111155565565111111110000000000000000
+00000000000000000000000000000000000000000000b00b00b0000b1111f11f1114f14f11144111111111111111111111111111111111110000000000000000
 000000000000000000000000000000000119900011111111111111111111111111111111000000000000000011111111111111110000000011dd1111111dd111
 00000000000000000000000000000000011990001111111111111111111aaa1111111111000000000000000011b333111b13b1310000000017d77771117d7771
 00000000000000000000000000000000000990001111111111ee111111aaaaa111aaaaa1000000000000000013333b3111333311000000007d77777717d77777
