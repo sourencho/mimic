@@ -3,7 +3,7 @@ A tile based puzzle game where you can transform into animals by mimicking their
 
 [Play here!](https://www.lexaloffle.com/bbs/?tid=37345)
 
-![demo6](images/demo6.gif)
+![demo6](images/demo7.gif)
 
 Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse) and [unna97](https://github.com/unna97)
 
