@@ -5,7 +5,7 @@ A tile based puzzle game where you can transform into animals by mimicking their
 
 ![demo6](images/demo7.gif)
 
-Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse) and [unna97](https://github.com/unna97)
+Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse)
 
 ### Ideas for more mechanics
 - [ ] Aquire disadvantage of animal you mimicked in addition to advantage
