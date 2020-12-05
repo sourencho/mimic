@@ -4,9 +4,9 @@ __lua__
 -- mimic
 -- by souren and nana
 
--- data
+-- DATA
 
--- settings
+-- SETTINGS
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
 player_spr_offset = 32
@@ -28,19 +28,22 @@ fish_spr = 194
 sheep_spr = 196
 butter_spr = 210
 
--- map and tiles
+-- MAP AND TILES
+-- tile flag values
 tree = 0
 water = 1
 rock = 2
 win = 3
 ground = 4
+rock_small = 5
 
+-- tile spr values
 win_spr = 64
 wtr_spr_1 = 144
 wtr_spr_2 = 161
 wtr_spr_3 = 176
 
-tiles = {tree, water, rock, ground, win}
+tiles = {tree, water, rock, ground, win, rock_small}
 level_tiles = {}
 tile_frame_counts = {
     [win_spr] = 1,
@@ -55,26 +58,29 @@ tile_frame_speeds = {
     [wtr_spr_3] = 120,
 }
 
--- actors
+-- ACTORS
 npcs = {
     {
         spr_n = fish_spr,
         pattern = {{-1, 0}, {-1, 0}, {-1, 0}, {1, 0}, {1, 0}, {1, 0}},
-        abilities = {water, win},
+        move_abilities = {water, win},
+        push_abilities = {},
     },
     {
         spr_n = sheep_spr,
         pattern = {{0, -1}, {1, 0}, {1, 0}, {-1, 0}, {-1, 0}, {0, 1}},
-        abilities = {rock, win},
+        move_abilities = {rock, rock_small, win},
+        push_abilities = {},
     },
     {
         spr_n = butter_spr,
         pattern = {{0, 1}, {0, 1}, {0, -1} , {0, -1}},
-        abilities = {tree, win},
+        move_abilities = {tree, win},
+        push_abilities = {},
     },
 }
 
---sfx
+-- SFX
 player_sfx={}
 player_sfx.move={}
 player_sfx.move[ground]=1
@@ -82,6 +88,17 @@ player_sfx.move[tree]=3
 player_sfx.move[rock]=4
 player_sfx.move[water]=5
 player_sfx.transform=2
+
+-->8
+-- util
+
+function copy_table(table)
+    copy = {}
+    for i=1,#table do
+      copy[i] = table[i]
+    end
+    return copy
+end
 
 
 -->8
@@ -98,17 +115,18 @@ end
 -->8
 -- game logic
 
-function make_actor(x, y, spr_n, pattern, abilities)
+function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities)
     local a={}
     a.x = x
     a.y = y
     a.dx = 0
     a.dy = 0
     a.spr = spr_n
-    a.abilities = abilities
+    a.move_abilities = copy_table(move_abilities)
+    a.push_abilities = copy_table(push_abilities)
 
     -- pattern
-    a.pattern = pattern
+    a.pattern = copy_table(pattern)
     a.t = 0
 
     -- animation
@@ -132,9 +150,18 @@ function is_tile(tile_class,x,y)
     return fget(tile_spr, tile_class)
 end
 
-function has_ability(a, tile_ability)
-    for i=1,#a.abilities do
-        if a.abilities[i] == tile_ability then
+function has_move_ability(a, tile_ability)
+    for i=1,#a.move_abilities do
+        if a.move_abilities[i] == tile_ability then
+            return true
+        end
+    end
+    return false
+end
+
+function has_push_ability(a, tile_ability)
+    for i=1,#a.push_abilities do
+        if a.push_abilities[i] == tile_ability then
             return true
         end
     end
@@ -142,18 +169,37 @@ function has_ability(a, tile_ability)
 end
 
 function can_move(x, y, a)
-    -- if moving to flagged tile check if had ability
+    -- For all tile types, check if this tile is of that type and actor has ability to move
     for t in all(tiles) do
-        if(is_tile(t,x,y) and has_ability(a,t)) then
+        if(is_tile(t,x,y) and has_move_ability(a,t)) then
             return true
         end
     end
     return false
 end
 
+function can_push(x, y, a)
+    -- For all tile types, check if this tile is of that type and actor has ability to move
+    for t in all(tiles) do
+        if(is_tile(t,x,y) and has_push_ability(a,t)) then
+            return true
+        end
+    end
+    return false
+end
+
+function maybe_push(x, y, dx, dy)
+    local new_x = x + dx;
+    local new_y = y + dy;
+    -- only allow to push onto ground for now
+    if (is_tile(ground, new_x, new_y)) then
+        level_tiles[new_x][new_y] = level_tiles[x][y]
+        level_tiles[x][y] = make_tile(65)
+    end
+end
+
 function get_pattern_move(a)
     return a.pattern[(a.t % #a.pattern) + 1]
---    end
 end
 
 function npc_get_move(a)
@@ -221,8 +267,15 @@ function update_actor(a)
         local new_x = a.x + a.dx
         local new_y = a.y + a.dy
 
-        if can_move(new_x, new_y, a) then
+        -- push
+        if is_player(a) then
+            if can_push(new_x, new_y, a) then
+                maybe_push(new_x, new_y, a.dx, a.dy)
+            end
+        end
 
+        -- move
+        if can_move(new_x, new_y, a) then
             a.x = new_x
             a.y = new_y
 
@@ -256,7 +309,7 @@ function init_actors(l)
     for n in all(npcs) do
         local n_pos = find_sprite(l, n.spr_n)
         if n_pos != nill then
-            make_actor(n_pos[1], n_pos[2], n.spr_n, n.pattern, n.abilities)
+            make_actor(n_pos[1], n_pos[2], n.spr_n, n.pattern, n.move_abilities, n.push_abilities)
         end
     end
 end
@@ -279,11 +332,13 @@ player_spr = 192
 player_pattern = {}
 player_pattern_i = 0
 player_pattern_size = 10 -- must be 1 longer than the max npc pattern length
-player_abilities = {ground, win}
+player_move_abilities = {ground, win}
+player_push_abilities = {rock_small}
 
 function init_player(l)
     local player_pos = find_sprite(l, player_spr)
-    pl = make_actor(player_pos[1], player_pos[2], player_spr, {}, player_abilities) -- player
+    pl = make_actor(
+        player_pos[1], player_pos[2], player_spr, {}, player_move_abilities, player_push_abilities)
     reset_player_pattern()
 end
 
@@ -305,7 +360,7 @@ end
 
 function play_player_sfx(action)
     if(action == "move") then
-        sfx(player_sfx[action][pl.abilities[1]])
+        sfx(player_sfx[action][pl.move_abilities[1]])
         return
     end
     sfx(player_sfx[action])
@@ -385,10 +440,11 @@ function mimic()
             -- check regular pattern and shifted pattern for backwards mimic
             if contains_pattern(player_pattern, a.pattern) or
                 contains_pattern(player_pattern, shift_pattern_halfway(a.pattern)) then
-                if(not (pl.abilities[1] == a.abilities[1])) then
+                if(not (pl.move_abilities[1] == a.move_abilities[1])) then
                     play_player_sfx("transform")
                 end
-                pl.abilities = a.abilities
+                pl.move_abilities = a.move_abilities
+                pl.push_abilities = a.push_abilities
                 pl.spr = a.spr + player_spr_offset
                 reset_player_pattern()
             end
@@ -659,9 +715,9 @@ __gfx__
 000550000000000000000000000000000000000000000000000000000cccccc0ccccccc00ccccccc00cccc000000000000000000000000000000000000000000
 005555000005550000000000000000000000000000000000000000000cccccc0ccccccc00ccccccc0cccccc00000000000000000000000000000000000000000
 055555500055550000000000000000000000000000000000000000000cccccc0ccccccc00ccccccc0cccccc00000000000000000000000000000000000000000
-055555500055555000000000000000000000000000000000000000000cccccc0ccccccc00ccccccc0cccccc00000000000000000000000000000000000000000
-055555500555555000000000000000000000000000000000000000000cccccc0ccccccc00ccccccc0cccccc00000000000000000000000000000000000000000
-005555000555555000000000000000000000000000000000000000000cccccc0ccccccc00ccccccc0cccccc00000000000000b00000000000000000000000000
+055555500055555000055000000000000000000000000000000000000cccccc0ccccccc00ccccccc0cccccc00000000000000000000000000000000000000000
+055555500555555000555500000000000000000000000000000000000cccccc0ccccccc00ccccccc0cccccc00000000000000000000000000000000000000000
+005555000555555000555550000000000000000000000000000000000cccccc0ccccccc00ccccccc0cccccc00000000000000b00000000000000000000000000
 000000000000000000000000000000000000000000000000000000000cccccc00cccccc00cccccc00cccccc00000000000000000000000000000000000000000
 000330000000000000000000000000000000000000000000000000000cccccc00cccccc00cccccc00cccccc0cccccccc0cccccc00cccccc00000000000000000
 003333000003300000000000000000000000000000000000000000000cccccccccccccccccccccc00cccccccccccccccccccccc0ccccccc00000000000000000
@@ -716,15 +772,15 @@ cccccccccccccccccccccccccccccccc000000000000000000000000000000000000000000000000
 0888888000888800009990900099090006666666006666660000000000ee00000000000000000000000000000000000000000000000000000000000000000000
 08f8f8800888888009999900099990000666666000666660e0000ee00e00e00e0714141414141414141414141414140707141414141414141414141414141407
 0888888008f8f880099999000999900006666660006666600e00e00ee0000ee00000000000000000000000000000000000000000000000000000000000000000
-08888880088888800099909000990900060000600060006000ee000000000000070505050514b6b6b6b6140606060607070505050514b6b6b6b6140606060607
+08888880088888800099909000990900060000600060006000ee000000000000070505141414b6b6b6b6140606060607070505050514b6b6b6b6140606060607
 00888800008888000000000000000000060000600066006600000000000000000000000000000000000000000000000000000000000000000000000000044000
-0000000000000000000000000000000000000000000000000000000000000000070505050514b6b6b6b6140606060607070505050514b6b6b6b61406062d0607
+0000000000000000000000000000000000000000000000000000000000000000070505141414b6b6b6b6140606060607070505050514b6b6b6b61406062d0607
 00000000000000000e0000e000e00e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000eee00eee0eeeeee000000000000000000000000000000000070505050514b6b6b6b6140606060607070505050514b6b6b6b6140606060607
+0000000000000000eee00eee0eeeeee000000000000000000000000000000000070505252514b6b6b6b6140606060607070505050514b6b6b6b6140606060607
 0000000000000000eee00eee0eeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000eeeeee000eeee0000000000000000000000000000000000070505050514b6b605b6140606150607074c05050514b6b6b62c140606150607
+00000000000000000eeeeee000eeee0000000000000000000000000000000000070505141414b6b6b6b6140606060607074c05050514b6b6b62c140606060607
 000000000000000000eeee00000ee000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000eeeeee000eeee00000000000000000000000000000000000714b0b01414141414141414141414070714b0b0141414141414141414141407
+00000000000000000eeeeee000eeee00000000000000000000000000000000000714b0b01414141425141414141414070714b0b0141414142514141414141407
 0000000000000000eee00eee0eeeeee0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000e0000e000e00e00000000000000000000000000000000000714b0b01414141414141414141414070714b0b0141414141414141414141407
 00000000000000000000000000000000088000000088000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -874,7 +930,7 @@ __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
 __gff__
-00000800000000000001041004040000000000000000000000020001010000000000000000000000000202010000000000000000000000000002020000000000081000000000000202020000020200080404000000000002020202000000000801010000000000020202020202020008800000d0000000000000000000000008
+00000800000000000001041004040000000000000000000000020001010000000000000000000000000202010000000000000000000000000002020000000000081000000000000202020000020200080404200000000002020202000000000801010000000000020202020202020008800000d0000000000000000000000008
 0808080808080808080808080808080802020202020000000800000000000000020202020000000000000000000000000202020200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 60606060606060606160606060606060000000000000000000000000000000000b0b0b0b61610b0b0b0b0b0b0b0b0b0b0000000000000000000000000000000060616160606060606060606060616060000000000000000000000000000000005760616161614060606061616060606100000000000000000000000000000000
