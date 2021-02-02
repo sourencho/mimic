@@ -39,14 +39,14 @@ bird_spr = 212
 
 -- MAP AND TILES
 -- tile flag values
-tree = 0
-water = 1
-rock = 2
-win = 3
-ground = 4
-rock_small = 5
-cloud = 6
-tree_small = 7
+tree = 1
+water = 2
+rock = 4
+win = 8
+ground = 16
+rock_small = 32
+cloud = 64
+tree_small = 128
 
 
 -- tile spr values
@@ -224,7 +224,6 @@ function draw_trail_left_box(pos, col, curr_tick, start_tick, end_tick)
     rectfill(pos[1] + 1, pos[2] + 4, pos[1] + 2, pos[2] + 5, col)
 end
 
-
 -->8
 -- util
 
@@ -315,7 +314,7 @@ function is_tile(tile_class,x,y)
     tile_spr = level_tiles[x][y].spr
 
     --find out if tile sprite is member of class
-    return fget(tile_spr, tile_class)
+    return fget(tile_spr) == tile_class
 end
 
 function has_move_ability(a, tile_ability)
