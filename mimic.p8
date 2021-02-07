@@ -13,7 +13,6 @@ player_spr_offset = 32
 
 dying_time = 90 -- number of frames dying npc is shown
 
-splash = true
 splash_inst_1 = "take the form of an animal"
 splash_inst_2 = "by mimicking its movement"
 splash_keys_1 = "move"
@@ -24,7 +23,7 @@ stuck_text = "press \151 to restart"
 
 level_size = 16
 level_count = 11
-start_level = 5
+start_level = 0
 
 debug_mode = false
 debug = "DEBUG\n"
@@ -68,6 +67,12 @@ tile_frame_speeds = {
     [cld_spr_2] = 500,
     [cld_spr_3] = 500,
     [cld_spr_4] = 500,
+}
+
+-- GAME
+game = {
+    state = "splash", -- [splash, play, won]
+    level = start_level,
 }
 
 -- ACTORS
@@ -616,10 +621,12 @@ function player_input()
     if (btnp(3)) pl.dy = 1
     if (btnp(4)) show_trail = not show_trail
     if (btnp(5)) then
-        if splash then
-            splash = not splash
+        if game.state == "splash" then
+            game.state = "play"
+        elseif game.state == "play" then
+            change_level = game.level
         else
-            change_level = level
+            -- noop
         end
     end
 end
@@ -655,7 +662,7 @@ end
 function update_player(p)
     -- check player victory
     if is_tile(win, p.x, p.y) then
-        change_level = level + 1
+        change_level = game.level + 1
         sfx(11)
         return
     end
@@ -791,17 +798,16 @@ function make_tile(tile_spr)
     tile.frame = flr(rnd(tile_frame_count))
     return tile
 end
-
-function init_level(l)
+function init_level(_level)
     tick = 0
     actors = {}
     dying = {}
     dead = {}
     particles={}
-    level = l
-    init_tiles(l)
-    init_actors(l)
-    init_player(l)
+    game.level = _level
+    init_tiles(_level)
+    init_actors(_level)
+    init_player(_level)
     debug_stuff()
 end
 
@@ -872,8 +878,8 @@ function draw_won()
 end
 
 function draw_level_splash(l)
-    local level_text="level "..l
     draw_actor(pl)
+    local level_text="level "..l
     print(level_text, hcenter(level_text), vcenter(level_text), 1)
 end
 
@@ -941,7 +947,7 @@ function draw_player_trail()
 end
 
 function draw_ui()
-    if is_stuck() or no_npc() then
+    if is_stuck() then
         print(stuck_text, hcenter(stuck_text), vcenter(stuck_text), 7)
     end
 end
@@ -973,29 +979,44 @@ end
 -- game loop
 
 function _init()
-    init_level(start_level)
+    init_level(game.level)
     change_level = -1
     menuitem(1, "skip level", menu_skip_level)
 end
 
 function menu_skip_level()
-    change_level = level + 1
+    change_level = game.level + 1
 end
 
 function _update()
+    -- pre update
     tick += 1
+    player_input()
+
+    if game.state == "splash" then
+        return
+    elseif game.state == "play" then
+        update_play()
+    elseif game.state == "won" then
+        return
+    end    
+end
+
+function update_play()
+    -- check win
     if change_level == level_count then
+        game.state = "won"
         return
     end
+
+    -- check level switch
     if change_level >= 0 then
         init_level(change_level)
         change_level = -1
         return
     end
-    player_input()
-    if splash then
-        return
-    end
+
+    -- play level
     npc_input()
     update_actors()
     update_particles()
@@ -1005,22 +1026,26 @@ function _update()
 end
 
 function _draw()
-    if splash then
+    if game.state == "splash" then
         draw_splash()
-    elseif change_level == level_count then
+    elseif  game.state == "won" then
         draw_won()
+    elseif game.state == "play" then
+        draw_play()
+    end
+end
+
+function draw_play()
+    cls()
+    if tick < 50 then
+        draw_level_splash(game.level)
     else
-        cls()
-        if tick < 50 then
-            draw_level_splash(level)
-        else
-            draw_level()
-            draw_particles()
-            draw_player_trail()
-            draw_actors()
-            draw_ui()
-            if (debug_mode) draw_debug()
-        end
+        draw_level()
+        draw_particles()
+        draw_player_trail()
+        draw_actors()
+        draw_ui()
+        if (debug_mode) draw_debug()
     end
 end
 
