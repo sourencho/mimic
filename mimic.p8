@@ -23,9 +23,9 @@ stuck_text = "press \151 to restart"
 
 level_size = 16
 level_count = 11
-start_level = 6
+start_level = 5
 
-debug_mode = false
+debug_mode = true
 debug = "DEBUG\n"
 
 show_trail = false
@@ -49,27 +49,31 @@ tree_small = 33
 
 
 -- tile spr values
-cld_spr_1 = 67
-cld_spr_2 = 83
-cld_spr_3 = 99
-cld_spr_4 = 115
+cloud_1_spr = 67
+cloud_2_spr = 83
+cloud_3_spr = 99
+cloud_4_spr = 115
+ground_spr = 65
 
-tiles = {tree, water, rock, ground, win, rock_small, cloud, tree_small}
-level_tiles = {}
+static_tiles = {tree, water, rock, ground, win, cloud}
+dynamic_tiles = {rock_small, tree_small}
+
 tile_frame_counts = {
-    [cld_spr_1] = 4,
-    [cld_spr_2] = 4,
-    [cld_spr_3] = 4,
-    [cld_spr_4] = 4,
+    [cloud_1_spr] = 4,
+    [cloud_2_spr] = 4,
+    [cloud_3_spr] = 4,
+    [cloud_4_spr] = 4,
 }
 tile_frame_speeds = {
-    [cld_spr_1] = 500,
-    [cld_spr_2] = 500,
-    [cld_spr_3] = 500,
-    [cld_spr_4] = 500,
+    [cloud_1_spr] = 500,
+    [cloud_2_spr] = 500,
+    [cloud_3_spr] = 500,
+    [cloud_4_spr] = 500,
 }
 
 -- GAME
+level_static_tiles = {}
+level_dynamic_tiles = {}
 game = {
     state = "splash", -- [splash, play, won]
     level = start_level,
@@ -256,6 +260,13 @@ function get_spr_col(spr_n)
     return sget(spr_x + 4, spr_y + 4)
 end
 
+function contains(xs, e)
+    for x in all(xs) do
+        if (x == e) return true
+    end
+    return false
+end
+
 
 -->8
 -- text
@@ -298,40 +309,56 @@ function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities)
     return a
 end
 
-function is_tile(tile_class,x,y)
+function in_bounds(x, y)
     if x < 0 or x >= level_size or
        y < 0 or y >= level_size then
         return false
     end
 
-    tile_spr = level_tiles[x][y].spr
+    return true
+end
 
-    --find out if tile sprite is member of class
+function is_static_tile(tile_class, x, y)
+    if (not in_bounds(x, y)) return false
+
+    local tile_spr = level_static_tiles[x][y].spr
+
+    -- find out if tile sprite is member of class
+    return fget(tile_spr) == tile_class
+end
+
+
+function is_dynamic_tile(tile_class, x, y)
+    if (not in_bounds(x, y)) return false
+
+    local tile_spr = level_dynamic_tiles[x][y].spr
+
+    -- find out if tile sprite is member of class
     return fget(tile_spr) == tile_class
 end
 
 function has_move_ability(a, tile_ability)
-    for i=1,#a.move_abilities do
-        if a.move_abilities[i] == tile_ability then
-            return true
-        end
-    end
-    return false
+    return contains(a.move_abilities, tile_ability)
 end
 
 function has_push_ability(a, tile_ability)
-    for i=1,#a.push_abilities do
-        if a.push_abilities[i] == tile_ability then
-            return true
-        end
-    end
-    return false
+    return contains(a.push_abilities, tile_ability)
 end
 
 function can_move(x, y, a)
+    if (not in_bounds(x, y)) return false
+
     -- For all tile types, check if this tile is of that type and actor has ability to move
-    for t in all(tiles) do
-        if(is_tile(t,x,y) and has_move_ability(a,t)) then
+    if level_dynamic_tiles[x][y].spr != ground_spr then 
+        for t in all(dynamic_tiles) do
+            if(is_dynamic_tile(t, x, y) and has_move_ability(a,t)) then
+                return true
+            end
+        end
+        return false
+    end
+    for t in all(static_tiles) do
+        if(is_static_tile(t, x, y) and has_move_ability(a,t)) then
             return true
         end
     end
@@ -339,22 +366,25 @@ function can_move(x, y, a)
 end
 
 function can_push(x, y, a)
+    if (not in_bounds(x, y)) return false
+    
     -- For all tile types, check if this tile is of that type and actor has ability to move
-    for t in all(tiles) do
-        if(is_tile(t,x,y) and has_push_ability(a,t)) then
+    for t in all(dynamic_tiles) do
+        if(is_dynamic_tile(t, x, y) and has_push_ability(a, t)) then
             return true
         end
     end
     return false
 end
 
+-- push if the tile has somewhere to go
 function maybe_push(x, y, dx, dy)
     local new_x = x + dx;
     local new_y = y + dy;
     -- only allow to push onto ground for now
-    if (is_tile(ground, new_x, new_y)) then
-        level_tiles[new_x][new_y] = level_tiles[x][y]
-        level_tiles[x][y] = make_tile(65)
+    if (is_static_tile(ground, new_x, new_y) and is_dynamic_tile(ground, new_x, new_y)) then
+        level_dynamic_tiles[new_x][new_y] = level_dynamic_tiles[x][y]
+        level_dynamic_tiles[x][y] = make_tile(ground_spr)
     end
 end
 
@@ -661,7 +691,7 @@ end
 
 function update_player(p)
     -- check player victory
-    if is_tile(win, p.x, p.y) then
+    if is_static_tile(win, p.x, p.y) then
         change_level = game.level + 1
         sfx(11)
         return
@@ -783,7 +813,14 @@ end
 -- level and map
 
 function make_tile(tile_spr)
-    local tile = {}
+    local tile = {
+        -- SCHEMA:
+        -- (int) frames
+        -- (int) speed
+        -- (int) tick_offset
+        -- (int) spr
+        -- (int) frame
+    }
 
     local tile_frame_count = tile_frame_counts[tile_spr]
     if (tile_frame_count == nil) tile_frame_count = 0
@@ -798,6 +835,7 @@ function make_tile(tile_spr)
     tile.frame = flr(rnd(tile_frame_count))
     return tile
 end
+
 function init_level(_level)
     tick = 0
     actors = {}
@@ -811,22 +849,37 @@ function init_level(_level)
     debug_stuff()
 end
 
--- Loads in level by populating 2d array of tiles `level_tiles`
+-- Loads in level by populating 2d array of tiles `level_static_tiles` and `level_dynamic_tiles`
 function init_tiles(l)
-    for i=0,level_size do
-        if level_tiles[i] == nil then
-            level_tiles[i] = {}
-        end
-        for j=0,level_size do
-            level_tiles[i][j] = make_tile(get_tile(i, j, l))
+    for i=0,level_size-1 do
+        level_static_tiles[i] = {}
+        level_dynamic_tiles[i] = {}
+
+        for j=0,level_size-1 do
+            local tile_spr = get_tile(i, j, l)
+            local tile_class = fget(tile_spr)
+            if (tile_spr == 0) then 
+                print(tile_spr)
+                print(tile_class)
+                stop(i.." "..j)
+            end
+            if contains(dynamic_tiles, tile_class) then
+                level_static_tiles[i][j] = make_tile(ground_spr)
+                level_dynamic_tiles[i][j] = make_tile(tile_spr)
+            elseif contains(static_tiles, tile_class) then
+                level_static_tiles[i][j] = make_tile(tile_spr)
+                level_dynamic_tiles[i][j] = make_tile(ground_spr)
+            else
+                debug_log("oops")
+            end
         end
     end
 end
 
 -- Given a level number will return the (x,y) position of the sprite
 function find_sprite(l, spr_n)
-    for i=0,level_size do
-        for j=0,level_size do
+    for i=0,level_size-1 do
+        for j=0,level_size-1 do
              if get_sprite(i,j,l) == spr_n then
                 return {i, j}
             end
@@ -885,14 +938,18 @@ end
 
 function draw_level()
     local t
-    for i=0,level_size do
-        for j=0,level_size do
-            t = level_tiles[i][j]
-            if t.frames != 0 and (tick + t.tick_offset) % t.speed == 0 then
-                t.frame += 1
-                t.frame %= t.frames
+    for i=0,level_size-1 do
+        for j=0,level_size-1 do
+            for t in all({level_static_tiles[i][j], level_dynamic_tiles[i][j]}) do
+                if (t.spr == nil) print(i.." "..j)
+                if t.spr > 0 then
+                    if t.frames != 0 and (tick + t.tick_offset) % t.speed == 0 then
+                        t.frame += 1
+                        t.frame %= t.frames
+                    end
+                    spr(t.spr + t.frame, i*8, j*8)
+                end
             end
-            spr(t.spr + t.frame, i*8, j*8)
         end
     end
 end
@@ -964,7 +1021,14 @@ function debug_log(s)
     debug..=s.."\n"
 end
 
-function debug_table(xs)
+function debug_log_table(xs)
+    for x in all(xs) do
+        debug ..= x.." "
+    end
+    debug ..="\n"
+end
+
+function debug_log_pair_table(xs)
     for i = 1,#xs do
         debug ..= pair_str(xs[i]).."\n"
     end
@@ -1337,9 +1401,9 @@ __map__
 41515041414141606060515050414141000000000000000000000000000000006060616779486d5060616161606041610000000000000000000000000000000061415051416161414141416160606161000000270000000000000000410000006041414141414140414141414141416000000000000000000000000000000000
 5150504160416161604161515041414141000000000000000000000000000000616160615051515241414141414141410000000000000000000000000000000061415141416161616161616161616160000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
 5150504141414141414141515050414100000000000000000000000000000000606251515151515141414141414141410000000000000000000000000000000061415051505051516161606160616160000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
-515250505041416041414150515050410000000000000000000000000000000061515151515151474a414141414141410000000000000000000000000000000061414150505050414141414141414160000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
+515250505041416041414150515050410000000000000000000000000000000061515151515151474a414141414141410000000000000000000000000000000061414150505050415241414141414160000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
 5150515250614161606050505050504100000000000000000000000000000000515151514748486d41414141414141600000000000000000000000000000000061414151505041524141414141414150000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
-5151505050504151505150525150504100000000000000000000000000000000515151515741414141414141414160610000270000000000000000000000000061414141524141414141414161515150000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
+5151505050504151505150525150504100000000000000000000000000000000515151515741414141414141414160610000270000000000000000000000000061414141414141414141414161515150000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
 5151525150515241505150515050504100000000000000000000000000000000515151517a41414141414141416261610000000000000000000000000000000060414141414141416160606060514050000000000000000000000000000000006141414141414141414141414141416000000000000000000500000000000000
 5150505051414141505140515050514100270000000000000000000000000000514051516749414141414141414160610000000000000000000000000000000060414141414141606060616151515050000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
 5150514141414141414151515052504100000005000000000000000000000000515151515157414141624141414141410000000000000000000000000000000051514141414160606061616161505050000000000000000000000000000000006041414141414141414141414141416000000000000000000000000000000000
