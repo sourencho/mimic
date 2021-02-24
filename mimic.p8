@@ -48,7 +48,6 @@ rock_small = 36
 cloud = 64
 tree_small = 33
 
-
 -- tile spr values
 cloud_1_spr = 67
 cloud_2_spr = 83
@@ -72,9 +71,22 @@ tile_frame_speeds = {
     [cloud_4_spr] = 500,
 }
 
+tile_display_names = {
+    [tree] = "trees",
+    [tree_small] = "trees",
+    [water] = "water",
+    [rock] = "rocks",
+    [rock_small] = "rocks",
+    [ground] = "ground",
+    [cloud] = "cloud",
+}
+
 -- GAME
+
+-- sprite values of tiles
 level_static_tiles = {}
 level_dynamic_tiles = {}
+
 game = {
     state = "splash", -- [splash, play, won]
     level = start_level,
@@ -87,30 +99,35 @@ npcs = {
         pattern = {{-1, 0}, {-1, 0}, {-1, 0}, {1, 0}, {1, 0}, {1, 0}},
         move_abilities = {water, win},
         push_abilities = {},
+        display_name = "fish",
     },
     {
         spr_n = sheep_spr,
         pattern = {{0, -1}, {0, -1}, {1, 0}, {-1, 0}, {0, 1}, {0, 1}},
         move_abilities = {rock, rock_small, win},
         push_abilities = {},
+        display_name = "goat",
     },
     {
         spr_n = butter_spr,
         pattern = {{0, 1}, {0, 1}, {0, 1}, {0, -1} , {0, -1}, {0, -1}},
         move_abilities = {tree, tree_small, win},
         push_abilities = {},
+        display_name = "butterfly",
     },
     {
         spr_n = bird_spr,
         pattern = {{0, -1}, {1, 0}, {0, 1}, {0, -1} , {-1, 0}, {0, 1}},
         move_abilities = {cloud, win},
         push_abilities = {},
+        display_name = "bird",
     },
     {
         spr_n = frog_spr,
         pattern = {{-1, 0}, {0, -1}, {-1, 0}, {1, 0} , {0, 1}, {1, 0}},
         move_abilities = {ground, water, win},
         push_abilities = {},
+        display_name = "frog",
     },
 }
 
@@ -278,6 +295,12 @@ function get_tile_class(t)
     return fget(t.spr)
 end
 
+function get_dynamic_or_static_tile_class(x, y)
+    local dynamic_tile = get_tile_class(level_dynamic_tiles[x][y])
+    if (dynamic_tile != ground) return dynamic_tile
+    return get_tile_class(level_static_tiles[x][y])
+end
+
 
 -->8
 -- text
@@ -293,7 +316,7 @@ end
 -->8
 -- game logic
 
-function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities)
+function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, display_name)
     local a={}
     a.x = x
     a.y = y
@@ -315,6 +338,9 @@ function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities)
 
     -- effects
     a.confused = 0
+
+    -- display
+    a.display_name = display_name
 
     add(actors, a)
     return a
@@ -591,7 +617,13 @@ function init_actors(l)
     for n in all(npcs) do
         local n_pos = find_sprite(l, n.spr_n)
         if n_pos != nil then
-            make_actor(n_pos[1], n_pos[2], n.spr_n, n.pattern, n.move_abilities, n.push_abilities)
+            make_actor(
+                n_pos[1], n_pos[2],
+                n.spr_n,
+                n.pattern,
+                n.move_abilities,
+                n.push_abilities,
+                n.display_name)
         end
     end
 end
@@ -635,7 +667,7 @@ player_trail_index = 0
 function init_player(l)
     local player_pos = find_sprite(l, player_spr)
     pl = make_actor(
-        player_pos[1], player_pos[2], player_spr, {}, player_move_abilities, player_push_abilities)
+        player_pos[1], player_pos[2], player_spr, {}, player_move_abilities, player_push_abilities, "you")
     reset_player_pattern()
     reset_player_trail()
 end
@@ -656,7 +688,7 @@ function player_input()
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
-    if (btnp(4)) show_trail = not show_trail
+    -- if (btnp(4)) show_trail = not show_trail
     if (btnp(5)) then
         if game.state == "splash" then
             game.state = "play"
@@ -784,6 +816,7 @@ function mimic()
                 pl.move_abilities = a.move_abilities
                 -- pl.push_abilities = a.push_abilities
                 pl.spr = a.spr
+                pl.display_name = a.display_name
                 reset_player_pattern()
             end
         end
@@ -1013,6 +1046,9 @@ end
 function draw_ui()
     if is_stuck() then
         print(stuck_text, hcenter(stuck_text), vcenter(stuck_text), 7)
+        local stuck_tile = get_dynamic_or_static_tile_class(pl.x, pl.y)
+        local explain_text = pl.display_name.." can't "..tile_display_names[stuck_tile]
+        print(explain_text, hcenter(explain_text), vcenter(explain_text) + 8, 7)
     end
 end
 
@@ -1432,7 +1468,7 @@ __sfx__
 011800100c55000500105500050013550005000e55010550155500c5500e550135500e55017550155501355013500005000050000500005000050000500005000050000500005000050000500005000050000500
 010c00100c0530c000000000c0000c6532960034600396000c0530c0000c0530c0530c6531b60015600126000c0000f6000f6000f6000c0000f6000d6000c6000a60000600076000460000600006000060000600
 010c00202401524025240052b0252b0152700528015280252d0152d025270052b0252b0152700524015240252501525025240052c0252c0152700528015280252701527025270052702527015270052501525025
-001000000361005610046100561003610016000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000361005610046000560003600016000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
 00 4d0e0f44
 
