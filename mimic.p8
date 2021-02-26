@@ -301,7 +301,6 @@ function get_dynamic_or_static_tile_class(x, y)
     return get_tile_class(level_static_tiles[x][y])
 end
 
-
 -->8
 -- text
 
@@ -503,7 +502,7 @@ function npc_input()
                         a.dx = move[1]
                         a.dy = move[2]
                         a.last_move = move
-                        create_trail(a)
+                        -- create_trail(a)
                     end
                 end
             end
@@ -571,6 +570,7 @@ function update_actor(a)
             if is_player(a) then
                 update_player(a)
                 play_player_sfx("move")
+                overlap_effects()
             else
                 update_npc(a)
             end
@@ -936,6 +936,33 @@ function get_sprite(x,y,l)
 end
 
 -->8
+-- vfx
+
+function draw_heart(pos, col, curr_tick, start_tick, end_tick)
+    local waver = tick % 4
+    if (tick % 8) < 4 then waver *= -1 end 
+    waver += ({[true]=1,[false]=-1})[(rnd() > 0.5)]*flr(rnd(1))
+    print("\135", pos[1] + (waver - 4), pos[2] - (curr_tick - start_tick), 8)
+end
+
+function overlap_effects()
+    for a in all(actors) do
+        if (not is_player(a)) and (pl.x == a.x and pl.y == a.y) then
+            local frame_len = #a.pattern - 1
+            local end_tick = tick + (4 * frame_len)
+            local heart = {
+                pos = {a.x*8 + 4, a.y*8 + 4},
+                col = 10,
+                draw_fn = draw_heart,
+                start_tick = tick,
+                end_tick = end_tick
+            }
+            add(particles, heart)
+        end
+    end
+end
+
+-->8
 -- draw
 
 function draw_splash()
@@ -1005,7 +1032,7 @@ function draw_dying(a)
 end
 
 function draw_particle(p)
-    p.draw_fn(p.pos, p.col, p.curr_tick, p.start_tick, p,end_tick)
+    p.draw_fn(p.pos, p.col, tick, p.start_tick, p,end_tick)
 end
 
 function draw_actors()
@@ -1143,9 +1170,9 @@ function draw_play()
         draw_level_splash(game.level)
     else
         draw_level()
-        draw_particles()
         draw_player_trail()
         draw_actors()
+        draw_particles()
         draw_ui()
         if (debug_mode) draw_debug()
     end
