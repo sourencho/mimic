@@ -7,6 +7,8 @@ __lua__
 -- DATA
 
 -- SETTINGS
+start_level = 6
+
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
 player_spr_offset = 32
@@ -23,7 +25,6 @@ stuck_text = "press \151 to restart"
 
 level_size = 16
 level_count = 9
-start_level = 0
 
 debug_mode = false
 debug = "DEBUG\n"
@@ -88,8 +89,10 @@ level_static_tiles = {}
 level_dynamic_tiles = {}
 
 game = {
-    state = "splash", -- [splash, play, won]
+    state = "splash", -- possible values [splash, play, won]
     level = start_level,
+    tick = 0,
+    pause_count = 0, -- the amount of ticks to pause the game
 }
 
 -- ACTORS
@@ -193,13 +196,13 @@ function create_trail(a)
     frame_len = #a.pattern - 1 - ((pattern_index - 1) * 2)
     --]]
 
-    local end_tick = tick + (slow_speed * frame_len)
+    local end_tick = game.tick + (slow_speed * frame_len)
 
     local trail = {
         pos = pos,
         col = col,
         draw_fn = draw_fn,
-        start_tick = tick,
+        start_tick = game.tick,
         end_tick = end_tick
     }
     add(particles, trail)
@@ -494,7 +497,7 @@ function npc_input()
         if not is_player(a) then
             -- apply npc pattern
             if a.dx == 0 and a.dy == 0 then
-                if tick % slow_speed == 0 then
+                if game.tick % slow_speed == 0 then
                     move = npc_get_move(a)
                     if pair_equal(move, {0,0}) then
                         npc_die(a)
@@ -540,6 +543,7 @@ function update_pattern(a, new_move)
     -- effects
     sfx(change_pattern_sfx)
     a.confused = 1
+    game.pause_count += 60
 end
 
 function update_actor(a)
@@ -559,7 +563,7 @@ function update_actor(a)
         if (a.confused == 1) a.confused += 1
 
         -- move
-        if can_move(new_x, new_y, a) then
+        if can_move(new_x, new_y, a) and game.pause_count <= 0 then
             if is_player(a) then
                 save_player_move(a)
             end
@@ -581,8 +585,10 @@ function update_actor(a)
         end
 
         -- actor animation
-        a.frame += 1
-        a.frame %= a.frames
+	if (game.pause_count <= 0) then 
+	    a.frame += 1
+	    a.frame %= a.frames
+	end
         if (a.dx != 0) a.flip_x = a.dx > 0
 
         a.dx = 0
@@ -599,7 +605,7 @@ end
 function update_particles()
     remove = {}
     for p in all(particles) do
-        if (p.end_tick < tick) then
+        if (p.end_tick < game.tick) then
             add(remove, p)
         end
     end
@@ -873,12 +879,12 @@ function make_tile(tile_spr)
 end
 
 function init_level(_level)
-    tick = 0
     actors = {}
     dying = {}
     dead = {}
     particles={}
     game.level = _level
+    game.tick = 0
     init_tiles(_level)
     init_actors(_level)
     init_player(_level)
@@ -939,8 +945,8 @@ end
 -- vfx
 
 function draw_heart(pos, col, curr_tick, start_tick, end_tick)
-    local waver = tick % 4
-    if (tick % 8) < 4 then waver *= -1 end 
+    local waver = game.tick % 4
+    if (game.tick % 8) < 4 then waver *= -1 end 
     waver += ({[true]=1,[false]=-1})[(rnd() > 0.5)]*flr(rnd(1))
     print("\135", pos[1] + (waver - 4), pos[2] - (curr_tick - start_tick), 8)
 end
@@ -949,12 +955,12 @@ function overlap_effects()
     for a in all(actors) do
         if (not is_player(a)) and (pl.x == a.x and pl.y == a.y) then
             local frame_len = #a.pattern - 1
-            local end_tick = tick + (4 * frame_len)
+            local end_tick = game.tick + (4 * frame_len)
             local heart = {
                 pos = {a.x*8 + 4, a.y*8 + 4},
                 col = 10,
                 draw_fn = draw_heart,
-                start_tick = tick,
+                start_tick = game.tick,
                 end_tick = end_tick
             }
             add(particles, heart)
@@ -970,7 +976,7 @@ function draw_splash()
 
     print(splash_keys_3, hcenter(splash_keys_3)-2, 105, 8)
 
-    if(tick % 60 > 0 and tick % 60 < 20) cls()
+    if(game.tick % 60 > 0 and game.tick % 60 < 20) cls()
 
 
     map(100,58,36,10,8,4)
@@ -1005,7 +1011,7 @@ function draw_level()
             for t in all({level_static_tiles[i][j], level_dynamic_tiles[i][j]}) do
                 if (t.spr == nil) print(i.." "..j)
                 if t.spr > 0 then
-                    if t.frames != 0 and (tick + t.tick_offset) % t.speed == 0 then
+                    if t.frames != 0 and (game.tick + t.tick_offset) % t.speed == 0 then
                         t.frame += 1
                         t.frame %= t.frames
                     end
@@ -1032,7 +1038,7 @@ function draw_dying(a)
 end
 
 function draw_particle(p)
-    p.draw_fn(p.pos, p.col, tick, p.start_tick, p,end_tick)
+    p.draw_fn(p.pos, p.col, game.tick, p.start_tick, p,end_tick)
 end
 
 function draw_actors()
@@ -1107,6 +1113,14 @@ end
 -->8
 -- game loop
 
+function increment_tick()
+    if game.pause_count > 0 then
+    	game.pause_count -= 1
+    else 
+    	game.tick += 1
+    end
+end
+
 function _init()
     init_level(game.level)
     change_level = -1
@@ -1119,7 +1133,8 @@ end
 
 function _update()
     -- pre update
-    tick += 1
+    increment_tick()
+
     player_input()
 
     if game.state == "splash" then
@@ -1166,7 +1181,7 @@ end
 
 function draw_play()
     cls()
-    if tick < 50 then
+    if game.tick < 50 then
         draw_level_splash(game.level)
     else
         draw_level()
