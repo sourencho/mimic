@@ -7,7 +7,7 @@ __lua__
 -- DATA
 
 -- SETTINGS
-start_level = 0
+start_level = 8
 
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
@@ -788,7 +788,7 @@ function mimic()
             -- check regular pattern and shifted pattern for backwards mimic
             if contains_pattern(player_pattern, a.pattern) or
                 contains_pattern(player_pattern, shift_pattern_halfway(a.pattern)) then
-                if(not (pl.move_abilities[1] == a.move_abilities[1])) then
+                if(pl.spr != a.spr) then
                     play_player_sfx("transform")
                 end
                 pl.move_abilities = copy_table(a.move_abilities)
