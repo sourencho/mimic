@@ -13,8 +13,6 @@ slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
 player_spr_offset = 32
 
-dying_time = 90 -- number of frames dying npc is shown
-
 splash_inst_1 = "take the form of an animal"
 splash_inst_2 = "by mimicking its movement"
 splash_keys_1 = "move"
@@ -134,9 +132,6 @@ npcs = {
     },
 }
 
--- death
-dying = {}
-dead = {}
 
 -- SFX
 player_sfx={}
@@ -338,9 +333,6 @@ function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, displa
     a.frames = 2
     a.flip_x = false
 
-    -- effects
-    a.confused = 0
-
     -- display
     a.display_name = display_name
 
@@ -519,20 +511,6 @@ function update_npc(a)
     end
 end
 
-function update_dying(a)
-    a.t += 1
-    if a.t == dying_time then
-        add(dead, a)
-    end
-end
-
-function update_dead()
-    for a in all(dead) do
-        del(dying, a)
-    end
-    dead = {}
-end
-
 function update_pattern(a, new_move)
     local update_index = (a.t % #a.pattern) + 1
     a.pattern[update_index] = {new_move[1], new_move[2]}
@@ -542,7 +520,6 @@ function update_pattern(a, new_move)
 
     -- effects
     sfx(change_pattern_sfx)
-    a.confused = 1
     game.pause_count += 60
 end
 
@@ -558,9 +535,6 @@ function update_actor(a)
                 maybe_push(new_x, new_y, a.dx, a.dy)
             end
         end
-
-        if (a.confused == 2) a.confused = 0
-        if (a.confused == 1) a.confused += 1
 
         -- move
         if can_move(new_x, new_y, a) and game.pause_count <= 0 then
@@ -880,8 +854,6 @@ end
 
 function init_level(_level)
     actors = {}
-    dying = {}
-    dead = {}
     particles={}
     game.level = _level
     game.tick = 0
@@ -1028,7 +1000,7 @@ function draw_actor(a)
     end
     spr(a.spr + a.frame, a.x*8, a.y*8, 1, 1, a.flip_x)
     pal()
-    if (a.confused > 0) print("!", a.x*8 + 3, a.y*8 + 1, 8)
+    -- if (a.confused > 0) print("!", a.x*8 + 3, a.y*8 + 1, 8)
 end
 
 function draw_dying(a)
@@ -1164,8 +1136,6 @@ function update_play()
     npc_input()
     update_actors()
     update_particles()
-    -- update_dyings()
-    -- update_dead()
     mimic()
 end
 
