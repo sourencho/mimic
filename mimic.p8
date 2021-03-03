@@ -24,7 +24,7 @@ stuck_text = "press \151 to restart"
 level_size = 16
 level_count = 9
 
-debug_mode = false
+debug_mode = true
 debug = "DEBUG\n"
 
 show_trail = false
@@ -320,6 +320,7 @@ function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, displa
     a.dx = 0
     a.dy = 0
     a.spr = spr_n
+    a.spr_2 = nil
     a.move_abilities = copy_table(move_abilities)
     a.push_abilities = copy_table(push_abilities)
 
@@ -790,13 +791,14 @@ end
 function player_mimic()
     for a in all(actors) do
         if not is_player(a) then
-            if is_mimic(player_pattern, a.pattern) then
+            if is_mimic(player_pattern, a.pattern, player_pattern_size, player_pattern_i) then
                 if(pl.spr != a.spr) then
                     play_player_sfx("transform")
                 end
                 pl.move_abilities = copy_table(a.move_abilities)
                 pl.push_abilities = copy_table(a.push_abilities)
                 pl.spr = a.spr
+                pl.spr_2 = a.spr_2
                 pl.display_name = a.display_name
                 reset_player_pattern()
             end
@@ -808,21 +810,19 @@ end
 function animal_mimic()
     for a in all(actors) do
         for b in all(actors) do
-            if a != b and not is_player(a) and not is_player(b) then
-                if is_mimic(player_pattern, a.pattern) then
-                    debug_log("OMG")
+            if a.spr != b.spr and a.spr_2 == nil and b.spr_2 == nil and not is_player(a) and not is_player(b) then
+                if is_mimic(a.pattern, b.pattern, #a.pattern, 0) then
+                    merge_animals(a, b)
                 end
             end
         end
     end
 end
 
-function is_mimic(pattern_a, pattern_b) 
+function is_mimic(pattern_a, pattern_b, pattern_a_size, pattern_a_start) 
     -- check regular pattern and shifted pattern for backwards mimic
-    return (
-        contains_pattern(pattern_a, pattern_b) or
-        contains_pattern(pattern_a, shift_pattern_halfway(pattern_b))
-    )
+    return contains_pattern(pattern_a, pattern_b, pattern_a_size, pattern_a_start) or
+        contains_pattern(pattern_a, shift_pattern_halfway(pattern_b), pattern_a_size, pattern_a_start)
 end
 
 function patterns_match(pattern_a, pattern_b, start_a)
@@ -839,16 +839,25 @@ function patterns_match(pattern_a, pattern_b, start_a)
     return true
 end
 
-function contains_pattern(in_pattern, fit_pattern)
+function contains_pattern(in_pattern, fit_pattern, in_pattern_size, in_pattern_start)
     local in_len = #in_pattern
     local fit_len = #fit_pattern
     -- start matching pattern from fit pattern length back from current player pattern index (wrapped)
-    local start_i = ((player_pattern_i - fit_len + player_pattern_size - 1) % player_pattern_size) + 1
+    local start_i = ((in_pattern_start - fit_len + in_pattern_size - 1) % in_pattern_size) + 1
     if patterns_match(in_pattern, fit_pattern, start_i) then
         return true
     else
         return false
     end
+end
+
+function merge_animals(a, b)
+    debug_log("OMG")
+    local merged_move_abilities = table_concat(a.move_abilities, b.move_abilities)
+    a.move_abilities = copy_table(merged_move_abilities)
+    b.move_abilities = copy_table(merged_move_abilities)
+    a.spr_2 = b.spr
+    b.spr_2 = a.spr
 end
 
 -->8
@@ -1067,7 +1076,14 @@ function draw_actor(a)
     if is_player(a) then
         pal({[6]=8, [9]=8, [10]=8, [11]=8, [12]=8, [13]=8, [14]=8})
     end
-    spr(a.spr + a.frame, a.x*8, a.y*8, 1, 1, a.flip_x)
+    if a.spr_2 != nil then
+        local a_sx, a_sy = (a.spr % 16) * 8, (a.spr \ 16) * 8
+        local b_sx, b_sy = (a.spr_2 % 16) * 8, (a.spr_2 \ 16) * 8
+        sspr(a_sx, a_sy, 4, 8 , a.x*8, a.y*8)
+        sspr(b_sx + 4, b_sy, 4, 8 , a.x*8 + 4, a.y*8)
+    else 
+        spr(a.spr + a.frame, a.x*8, a.y*8, 1, 1, a.flip_x)
+    end
     pal()
 end
 
@@ -1175,6 +1191,8 @@ function _update()
     -- pre update
     increment_tick()
 
+    if (game.pause_count > 0) return
+
     player_input()
 
     if game.state == "splash" then
@@ -1202,6 +1220,7 @@ function update_play()
 
     -- play level
     npc_input()
+    if (game.pause_count > 0) return
     update_actors()
     update_particles()
     mimic()
