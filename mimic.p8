@@ -7,7 +7,7 @@ __lua__
 -- DATA
 
 -- SETTINGS
-start_level = 9
+start_level = 0
 
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
@@ -24,7 +24,7 @@ stuck_text = "press \151 to restart"
 level_size = 16
 level_count = 9
 
-debug_mode = false
+debug_mode = true
 debug = "DEBUG\n"
 
 show_trail = false
@@ -90,6 +90,7 @@ game = {
     state = "splash", -- possible values [splash, play, won]
     level = start_level,
     tick = 0,
+    level_end_tick = 0,
     pause_count = 0, -- the amount of ticks to pause the game
 }
 
@@ -156,6 +157,7 @@ particles = {
     --    draw_fn = foobar(pos, curr_tick, start_tick, end_tick),
     --    start_tick = 0,
     --    end_tick = 0,
+    --    meta_data = {}
     --}
 }
 
@@ -198,7 +200,8 @@ function create_trail(a)
         col = col,
         draw_fn = draw_fn,
         start_tick = game.tick,
-        end_tick = end_tick
+        end_tick = end_tick,
+        meta_data = {},
     }
     add(particles, trail)
 end
@@ -674,7 +677,7 @@ function player_input()
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
-    -- if (btnp(4)) show_trail = not show_trail
+    -- if (btnp(4)) win_vfx({4, 4})
     if (btnp(5)) then
         if game.state == "splash" then
             game.state = "play"
@@ -719,6 +722,8 @@ function update_player(p)
     if is_static_tile(win, p.x, p.y) then
         change_level = game.level + 1
         sfx(11)
+        win_vfx({p.x, p.y})
+        game.level_end_tick = game.tick
         return
     end
 
@@ -896,9 +901,9 @@ end
 
 function init_level(_level)
     actors = {}
-    particles={}
+    --particles={}
     game.level = _level
-    game.tick = 0
+    -- game.tick = 0
     init_tiles(_level)
     init_actors(_level)
     init_player(_level)
@@ -958,22 +963,27 @@ end
 -->8
 -- vfx
 
-function draw_heart(pos, col, curr_tick, start_tick, end_tick)
+function draw_spark(pos, col, curr_tick, start_tick, end_tick, meta_data)
+    local delta = curr_tick - start_tick
+    circfill(pos[1] + meta_data.dir[1] * delta, pos[2] + meta_data.dir[2] * delta, 1, col)
+end
+
+function draw_heart(pos, col, curr_tick, start_tick, end_tick, meta_data)
     local waver = game.tick % 4
     if (game.tick % 8) < 4 then waver *= -1 end 
     waver += ({[true]=1,[false]=-1})[(rnd() > 0.5)]*flr(rnd(1))
     print("\135", pos[1] + (waver - 4), pos[2] - (curr_tick - start_tick), 8)
 end
 
-function draw_confused_animal(pos, col, curr_tick, start_tick, end_tick)
+function draw_confused_animal(pos, col, curr_tick, start_tick, end_tick, meta_data)
     print("!", pos[1] + 3, pos[2] + 1, col)
 end
 
-function draw_dot(pos, col, curr_tick, start_tick, end_tick)
+function draw_dot(pos, col, curr_tick, start_tick, end_tick, meta_data)
     rectfill(pos[1] + 3, pos[2] + 3, pos[1] + 4, pos[2] + 4, col)
 end
 
-function draw_blocked_cross(pos, col, curr_tick, start_tick, end_tick)
+function draw_blocked_cross(pos, col, curr_tick, start_tick, end_tick, meta_data)
     line(pos[1] + 2, pos[2] + 2, pos[1] + 5, pos[2] + 5, col)
     line(pos[1] + 2, pos[2] + 5, pos[1] + 5, pos[2] + 2, col)
 end
@@ -987,6 +997,7 @@ function confused_effects(a, new_move, old_move)
         draw_fn = draw_confused_animal,
         start_tick = game.tick,
         end_tick = game.tick,
+        meta_data = {},
     }
     local new_dest_particle = {
         pos = {(a.x + new_move[1])*8, (a.y + new_move[2])*8},
@@ -994,6 +1005,7 @@ function confused_effects(a, new_move, old_move)
         draw_fn = draw_cross,
         start_tick = game.tick,
         end_tick = game.tick,
+        meta_data = {},
     }
     local blocked_dest_particle = {
         pos = {(a.x + old_move[1])*8, (a.y + old_move[2])*8},
@@ -1001,6 +1013,7 @@ function confused_effects(a, new_move, old_move)
         draw_fn = draw_dot,
         start_tick = game.tick,
         end_tick = game.tick,
+        meta_data = {},
     }
     add(particles, confused_animal_particle)
     add(particles, blocked_dest_particle)
@@ -1018,10 +1031,25 @@ function overlap_effects()
                 col = 10,
                 draw_fn = draw_heart,
                 start_tick = game.tick,
-                end_tick = end_tick
+                end_tick = end_tick,
+                meta_data = {},
             }
             add(particles, heart)
         end
+    end
+end
+
+function win_vfx(pos)
+    for i=0,10 do
+        spark = {
+            pos = {pos[1]*8 + 4, pos[2]*8 + 4},
+            col = 10,
+            draw_fn = draw_spark,
+            start_tick = game.tick,
+            end_tick = game.tick + 60,
+            meta_data = {dir = {rnd(2) - 1, rnd(2) - 1}},
+        }
+        add(particles, spark)
     end
 end
 
@@ -1057,6 +1085,7 @@ end
 
 function draw_level_splash(l)
     draw_actor(pl)
+    draw_particles()
     local level_text="level "..l
     print(level_text, hcenter(level_text), vcenter(level_text), 1)
 end
@@ -1106,7 +1135,7 @@ function draw_dying(a)
 end
 
 function draw_particle(p)
-    p.draw_fn(p.pos, p.col, game.tick, p.start_tick, p,end_tick)
+    p.draw_fn(p.pos, p.col, game.tick, p.start_tick, p.end_tick, p.meta_data)
 end
 
 function draw_actors()
@@ -1250,7 +1279,7 @@ end
 
 function draw_play()
     cls()
-    if game.tick < 50 then
+    if game.tick - game.level_end_tick < 50 then
         draw_level_splash(game.level)
     else
         draw_level()
