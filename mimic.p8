@@ -7,7 +7,7 @@ __lua__
 -- DATA
 
 -- SETTINGS
-start_level = 9
+start_level = 0
 
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
@@ -541,12 +541,12 @@ function update_pattern(a, new_move)
     local frame_len = #a.pattern - 1
     sfx(change_pattern_sfx)
     confused_effects(a, new_move, old_move)
-    game.pause_count += slow_speed * 2
+    pause(slow_speed * 2)
 end
 
 function update_actor(a)
     -- move actor
-    if(a.dx != 0 or a.dy != 0) then
+    if a.dx != 0 or a.dy != 0 then
         local new_x = a.x + a.dx
         local new_y = a.y + a.dy
 
@@ -558,7 +558,7 @@ function update_actor(a)
         end
 
         -- move
-        if can_move(new_x, new_y, a) and game.pause_count <= 0 then
+        if can_move(new_x, new_y, a) and not is_paused() then
             if is_player(a) then
                 save_player_move(a)
             end
@@ -580,18 +580,17 @@ function update_actor(a)
         end
 
         -- actor animation
-	if (game.pause_count <= 0) then 
+	if (not is_paused()) then 
 	    a.frame += 1
 	    a.frame %= a.frames
         a.no_trans_count = max(a.no_trans_count - 1, 0)
-        if (a.no_trans_count > 0) debug_log(a.no_trans_count)
 	end
-        if (a.dx != 0) a.flip_x = a.dx > 0
 
-        a.dx = 0
-        a.dy = 0
+    if (a.dx != 0) a.flip_x = a.dx > 0
 
-        -- effects
+    a.dx = 0
+    a.dy = 0
+
     end
 end
 
@@ -687,7 +686,7 @@ function player_input()
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
-    -- if (btnp(4)) transform_vfx({4, 4})
+    -- if (btnp(4)) pause(60)
     if (btnp(5)) then
         if game.state == "splash" then
             game.state = "play"
@@ -905,7 +904,11 @@ end
 function init_level(_level)
     actors = {}
     --particles={}
-    game.level = _level
+    if (game.level == _level) then
+        game.tick = game.level_end_tick
+    else
+        game.level = _level
+    end
     -- game.tick = 0
     init_tiles(_level)
     init_actors(_level)
@@ -981,7 +984,8 @@ function draw_heart(pos, col, curr_tick, start_tick, end_tick, meta_data)
 end
 
 function draw_confused_animal(pos, col, curr_tick, start_tick, end_tick, meta_data)
-    print("!", pos[1] + 3, pos[2] + 1, col)
+    print("!", pos[1] + 1, pos[2] + 1, col)
+    print("!", pos[1] + 4, pos[2] + 1, col)
 end
 
 function draw_dot(pos, col, curr_tick, start_tick, end_tick, meta_data)
@@ -1223,8 +1227,16 @@ end
 -->8
 -- game loop
 
+function is_paused()
+    return game.pause_count > 0
+end
+
+function pause(dur)
+    game.pause_count += dur
+end
+
 function increment_tick()
-    if game.pause_count > 0 then
+    if is_paused() then
     	game.pause_count -= 1
     else 
     	game.tick += 1
@@ -1245,7 +1257,7 @@ function _update()
     -- pre update
     increment_tick()
 
-    if (game.pause_count > 0) return
+    if (is_paused()) return
 
     player_input()
 
@@ -1274,7 +1286,7 @@ function update_play()
 
     -- play level
     npc_input()
-    if (game.pause_count > 0) return
+    if (is_paused()) return
     update_actors()
     update_particles()
     mimic()
@@ -1397,9 +1409,9 @@ __gfx__
 06141414141414142514150616161606000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 06161616160505151515b41506060606000000000000000000000000000000000616161614141474848784a42614141614000000000000000000000000000000
 16141414141414141515051516261606000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-06161616161616151515151506060406000000000000000000000000000000001616161616141475141414141414141600000000000000000053000000005000
+061616161616161515151515060604060000000000000000000000000000000016161616161414a7141414141414141600000000000000000053000000005000
 16161414141414051515161574848497000050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-060606060606060615051515060606060000000000000000000000000000000084848484848484d6061616160606060600000000000000000000000000000000
+060606060606060615051515060606060000000000000000000000000000000084878484849784c6061616160606060600000000000000000000000000000000
 161616261616161616151616a7161606000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000707070707070707070707070707070707070707070707070707070707070707
