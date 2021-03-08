@@ -133,8 +133,9 @@ npcs = {
     },
 }
 
+-->9
+-- sfx
 
--- SFX
 player_sfx={}
 player_sfx.move={}
 player_sfx.move[ground]=1
@@ -147,6 +148,18 @@ player_sfx.move[cloud]=16
 player_sfx.transform=2
 die_sfx=8
 change_pattern_sfx = 10
+transform_sfx = 2
+
+function play_player_sfx(action)
+    if(action == "move") then
+        sfx(player_sfx[action][get_dynamic_or_static_tile_class(pl.x, pl.y)])
+        return
+    end
+    sfx(player_sfx[action])
+end
+
+-->8
+-- particles
 
 -- particles
 particles = {
@@ -160,10 +173,6 @@ particles = {
     --    meta_data = {}
     --}
 }
-
-
--->8
--- particles
 
 -- remove trail code
 --[[ 
@@ -705,15 +714,6 @@ function reset_player_trail()
     player_trail_index = 0
 end
 
-function play_player_sfx(action)
-    if(action == "move") then
-        sfx(player_sfx[action][pl.move_abilities[1]])
-        return
-    end
-    sfx(player_sfx[action])
-end
-
-
 function is_player(a)
     return (#a.pattern == 0)
 end
@@ -829,6 +829,7 @@ function animal_mimic()
                is_mimic(a.pattern, b.pattern, #a.pattern, 0) and
                a.no_trans_count <= 0 and b.no_trans_count <= 0 then
                 merge_animals(a, b)
+                play_player_sfx("transform")
             end
         end
     end
