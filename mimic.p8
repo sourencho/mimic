@@ -218,6 +218,17 @@ function contains(xs, e)
     return false
 end
 
+-- compute magnitude of v
+function v_mag(v)
+  return sqrt((v[1] * v[1]) + (v[2] * v[2]))
+end
+
+-- normalizes v into a unit vector
+function v_normalize(v)
+  local len = v_mag(v)
+  return {v[1]/len, v[2]/len}
+end
+
 function get_tile_class(t)
     return fget(t.spr)
 end
@@ -585,7 +596,7 @@ function player_input()
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
-    -- if (btnp(4)) pause(60)
+    -- if (btnp(4)) win_vfx({8, 8})
     if (btnp(5)) then
         if game.state == "splash" then
             game.state = "play"
@@ -849,8 +860,8 @@ end
 
 function draw_spark(pos, col, curr_tick, start_tick, end_tick, meta_data)
     local delta = curr_tick - start_tick
-    local x = pos[1] + meta_data.dir[1] * delta
-    local y = pos[2] + meta_data.dir[2] * delta
+    local x = pos[1] + meta_data.dir[1] * delta * meta_data.spd
+    local y = pos[2] + meta_data.dir[2] * delta * meta_data.spd
     circfill(x, y, meta_data.size, col)
 end
 
@@ -927,22 +938,26 @@ function overlap_effects()
 end
 
 function win_vfx(pos)
-    explode_vfx(pos, 10, 2, 30, 90)
+    explode_vfx(pos, 10, 1.5, 40, 30, 90, 0.3, 1.5)
 end
 
 function transform_vfx(pos)
-    -- explode_vfx(pos, 8, 2, 20, 10)
+    -- noop
 end
 
-function explode_vfx(pos, col, size, count, dur)
+function explode_vfx(pos, col, size, count, min_dur, max_dur, min_spd, max_spd)
     for i=0,count do
         spark = {
             pos = {pos[1]*8 + 4, pos[2]*8 + 4},
             col = col,
             draw_fn = draw_spark,
             start_tick = game.tick,
-            end_tick = game.tick + dur,
-            meta_data = {dir = {rnd(2) - 1, rnd(2) - 1}, size = flr(rnd(size))},
+            end_tick = game.tick + rnd(max_dur - min_dur) + min_dur,
+            meta_data = {
+                dir = v_normalize({rnd(2) - 1, rnd(2) - 1}),
+                size = flr(rnd(size)),
+                spd = rnd(max_spd - min_spd) + min_spd,
+            },
         }
         add(particles, spark)
     end
