@@ -27,8 +27,6 @@ level_count = 10
 debug_mode = false
 debug = "DEBUG\n"
 
-show_trail = false
-
 -- spr numbers
 fish_spr = 7
 sheep_spr = 39
@@ -173,88 +171,6 @@ particles = {
     --    meta_data = {}
     --}
 }
-
--- remove trail code
---[[ 
-function create_trail(a)
-    if (not show_trail) return
-
-    local pos = {a.x * 8, a.y * 8}
-    local col = get_spr_col(a.spr)
-    local pattern_index = get_pattern_index(a)
-
-    local draw_fn
-    if a.dx == 1 then
-        draw_fn = draw_trail_right_box
-    elseif a.dx == -1 then
-        draw_fn = draw_trail_left_box
-    elseif a.dy == 1 then
-        draw_fn = draw_trail_down_box
-    elseif a.dy == -1 then
-        draw_fn = draw_trail_up_box
-    end
-
-    local frame_len = #a.pattern - 1
-
-    -- trail dies before animal steps on it when returning
-    if pattern_index > 3 then
-        pattern_index -= 3
-    end
-    frame_len = #a.pattern - 1 - ((pattern_index - 1) * 2)
-
-    local end_tick = game.tick + (slow_speed * frame_len)
-
-    local trail = {
-        pos = pos,
-        col = col,
-        draw_fn = draw_fn,
-        start_tick = game.tick,
-        end_tick = end_tick,
-        meta_data = {},
-    }
-    add(particles, trail)
-end
-
-function draw_trail_up(pos, col, curr_tick, start_tick, end_tick)
-    line(pos[1] + 2, pos[2] + 2, pos[1] + 3, pos[2] + 1, col)
-    line(pos[1] + 4, pos[2] + 2, col)
-    line(pos[1] + 2, pos[2] + 2, col)
-end
-
-function draw_trail_down(pos, col, curr_tick, start_tick, end_tick)
-    line(pos[1] + 5, pos[2] + 5, pos[1] + 4, pos[2] + 6, col)
-    line(pos[1] + 3, pos[2] + 5, col)
-    line(pos[1] + 5, pos[2] + 5, col)
-end
-
-function draw_trail_right(pos, col, curr_tick, start_tick, end_tick)
-    line(pos[1] + 5, pos[2] + 2, pos[1] + 6, pos[2] + 3, col)
-    line(pos[1] + 5, pos[2] + 4, col)
-    line(pos[1] + 5, pos[2] + 2, col)
-end
-
-function draw_trail_left(pos, col, curr_tick, start_tick, end_tick)
-    line(pos[1] + 2, pos[2] + 5, pos[1] + 1, pos[2] + 4, col)
-    line(pos[1] + 2, pos[2] + 3, col)
-    line(pos[1] + 2, pos[2] + 5, col)
-end
-
-function draw_trail_up_box(pos, col, curr_tick, start_tick, end_tick)
-    rectfill(pos[1] + 2, pos[2] + 1, pos[1] + 3, pos[2] + 2, col)
-end
-
-function draw_trail_down_box(pos, col, curr_tick, start_tick, end_tick)
-    rectfill(pos[1] + 4, pos[2] + 5, pos[1] + 5, pos[2] + 6, col)
-end
-
-function draw_trail_right_box(pos, col, curr_tick, start_tick, end_tick)
-    rectfill(pos[1] + 5, pos[2] + 2, pos[1] + 6, pos[2] + 3, col)
-end
-
-function draw_trail_left_box(pos, col, curr_tick, start_tick, end_tick)
-    rectfill(pos[1] + 1, pos[2] + 4, pos[1] + 2, pos[2] + 5, col)
-end
---]]
 
 -->8
 -- util
@@ -512,7 +428,6 @@ function npc_input()
                         a.dx = move[1]
                         a.dy = move[2]
                         a.last_move = move
-                        -- create_trail(a)
                     end
                 end
             end
@@ -559,10 +474,6 @@ function update_actor(a)
 
         -- move
         if can_move(new_x, new_y, a) and not is_paused() then
-            if is_player(a) then
-                save_player_move(a)
-            end
-
             a.x = new_x
             a.y = new_y
 
@@ -656,17 +567,6 @@ player_pattern_size = 10 -- must be 1 longer than the max npc pattern length
 player_move_abilities = {ground, win}
 player_push_abilities = {rock_small, tree_small}
 
-player_trail={
-    --SCHEMA
-    --{
-    --    from_x,
-    --    from_y,
-    --    dx,
-    --    dy
-    --}
-}
-player_trail_index = 0
-
 function init_player(l)
     local player_pos = find_sprite(l, player_spr)
     pl = make_actor(
@@ -678,7 +578,6 @@ function init_player(l)
         player_push_abilities,
         "you")
     reset_player_pattern()
-    reset_player_trail()
 end
 
 function player_input()
@@ -705,14 +604,6 @@ function reset_player_pattern()
     end
 end
 
-function reset_player_trail()
-    player_trail={}
-    for i=1,6 do
-        add(player_trail, {-1,-1,0,0})
-    end
-    player_trail_index = 0
-end
-
 function is_player(a)
     return (#a.pattern == 0)
 end
@@ -734,19 +625,6 @@ function update_player(p)
     end
     player_pattern[player_pattern_i][1] = p.dx;
     player_pattern[player_pattern_i][2] = p.dy;
-end
-
-function save_player_move(p)
-    if p.dx != 0 or p.dy != 0 then
-        local move = {
-            from_x = p.x,
-            from_y = p.y,
-            dx = p.dx,
-            dy = p.dy,
-        }
-        player_trail[player_trail_index % #player_trail + 1] = move
-        player_trail_index += 1
-    end
 end
 
 -->8
