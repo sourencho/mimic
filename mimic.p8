@@ -90,6 +90,7 @@ game = {
     tick = 0,
     level_end_tick = 0,
     pause_count = 0, -- the amount of ticks to pause the game
+    restart_level = false,
 }
 
 -- ACTORS
@@ -601,7 +602,7 @@ function player_input()
         if game.state == "splash" then
             game.state = "play"
         elseif game.state == "play" then
-            change_level = game.level
+            game.restart_level = true
         else
             -- noop
         end
@@ -792,16 +793,14 @@ end
 
 function init_level(_level)
     actors = {}
-    --particles={}
-    if (game.level == _level) then
-        game.tick = game.level_end_tick
-    else
-        game.level = _level
-    end
+    game.tick = game.level_end_tick
+    game.level = _level
+    change_level = game.level
     -- game.tick = 0
     init_tiles(_level)
     init_actors(_level)
     init_player(_level)
+    menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
 end
 
 -- Loads in level by populating 2d array of tiles `level_static_tiles` and `level_dynamic_tiles`
@@ -1138,12 +1137,24 @@ end
 
 function _init()
     init_level(game.level)
-    change_level = -1
     menuitem(1, "skip level", menu_skip_level)
+    menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
 end
 
 function menu_skip_level()
     change_level = game.level + 1
+end
+
+function menu_choose_level(b)
+    if (b&1 > 0) change_level -= 1
+    if (b&2 > 0) change_level += 1
+    
+    change_level = min(change_level, level_count - 1)
+    change_level = max(0, change_level)
+
+    menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
+
+    return true
 end
 
 function _update()
@@ -1171,9 +1182,15 @@ function update_play()
     end
 
     -- check level switch
-    if change_level >= 0 then
+    if game.restart_level then
+        init_level(game.level)
+        game.restart_level = false
+        particles={}
+        return
+    end
+
+    if change_level != game.level then
         init_level(change_level)
-        change_level = -1
         return
     end
 
@@ -1193,6 +1210,7 @@ function _draw()
     elseif game.state == "play" then
         draw_play()
     end
+    if (debug_mode) draw_debug()
 end
 
 function draw_play()
@@ -1205,7 +1223,6 @@ function draw_play()
         draw_actors()
         draw_particles()
         draw_ui()
-        if (debug_mode) draw_debug()
     end
 end
 
