@@ -22,7 +22,7 @@ won_text = "★ you win ★"
 stuck_text = "press \151 to restart"
 
 level_size = 16
-level_count = 10
+level_count = 9
 
 debug_mode = false
 debug = "DEBUG\n"
