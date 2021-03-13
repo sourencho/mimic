@@ -992,6 +992,45 @@ function draw_won()
     print(won_text, 38, vcenter(won_text)+20, 14)
 end
 
+function draw_level_splash_2(l)
+    --cls(7)
+    local txt_clr
+    local box_clr = 1
+    local margin = 2
+    local padding = 1
+    local size = 29
+    local row = 0
+    local col = 0
+    local x, y
+    local level_text
+
+    -- border
+    rect(1,1,127,127,box_clr)
+    rect(2,2,126,126,box_clr)
+
+    for i=0,level_count-1 do
+        -- coord
+        x = margin + (row % 4) * (size + 2 * padding)
+        y = margin + col * (size + 2 * padding)
+
+        -- text
+        level_text = i
+        if (i < 10) level_text = "0"..level_text
+        if (i == l) then txt_clr = 7 else txt_clr = 1 end
+
+        -- draw
+        -- rect(x + padding, y + padding, x + size, y + size, box_clr)
+        -- circ(x + padding + size/2, y + padding + size/2, size / 2, box_clr)
+        print(level_text, x + size/2 - 2, y + size/2 - 1, txt_clr)
+        if (i == l) spr(pl.spr, x + size/2 - 2, y + size/2 + 6)
+
+        -- update
+        row += 1
+        col = flr(row / 4)
+    end
+    draw_particles()
+end
+
 function draw_level_splash(l)
     draw_actor(pl)
     draw_particles()
@@ -1216,7 +1255,7 @@ end
 function draw_play()
     cls()
     if game.tick - game.level_end_tick < 50 then
-        draw_level_splash(game.level)
+        draw_level_splash_2(game.level)
     else
         draw_level()
         draw_player_trail()
