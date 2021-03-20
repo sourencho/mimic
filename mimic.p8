@@ -24,7 +24,7 @@ stuck_text = "press \151 to restart"
 level_size = 16
 level_count = 9
 
-debug_mode = false
+debug_mode = true
 debug = "DEBUG\n"
 
 -- spr numbers
@@ -696,7 +696,7 @@ function player_mimic()
             if is_mimic(player_pattern, a.pattern, player_pattern_size, player_pattern_i) then
                 if(pl.spr != a.spr) then
                     play_player_sfx("transform")
-                    transform_vfx({pl.x, pl.y})
+                    -- transform_vfx(pl)
                 end
                 pl.move_abilities = copy_table(a.move_abilities)
                 pl.push_abilities = copy_table(a.push_abilities)
@@ -857,6 +857,22 @@ end
 -->8
 -- vfx
 
+function box_vfx(x, y, col)
+    local box_particle = {
+        pos = {x*8, y*8},
+        col = col,
+        draw_fn = draw_box,
+        start_tick = game.tick,
+        end_tick = game.tick + 30,
+        meta_data = {}, 
+    }
+    add(particles, box_particle)
+end
+
+function draw_box(pos, col, curr_tick, start_tick, end_tick, meta_data)
+    rect(pos[1], pos[2], pos[1] + 7, pos[2] + 7, col)
+end
+
 function draw_spark(pos, col, curr_tick, start_tick, end_tick, meta_data)
     local delta = curr_tick - start_tick
     local x = pos[1] + meta_data.dir[1] * delta * meta_data.spd
@@ -940,8 +956,9 @@ function win_vfx(pos)
     explode_vfx(pos, 10, 1.5, 40, 30, 90, 0.3, 1.5)
 end
 
-function transform_vfx(pos)
+function transform_vfx(a)
     -- noop
+    box_vfx(a.x, a.y, 8)
 end
 
 function explode_vfx(pos, col, size, count, min_dur, max_dur, min_spd, max_spd)
