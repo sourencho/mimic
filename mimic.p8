@@ -7,7 +7,7 @@ __lua__
 -- DATA
 
 -- SETTINGS
-start_level = 9
+start_level = 0
 
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
@@ -19,12 +19,11 @@ splash_keys_1 = "move"
 splash_keys_2 = "\139\145\148\131"
 splash_keys_3 = "start \151"
 won_text = "★ you win ★"
-stuck_text = "press \151 to restart"
 
 level_size = 16
 level_count = 10
 
-debug_mode = true
+debug_mode = false
 debug = "DEBUG\n"
 
 -- spr numbers
@@ -175,6 +174,19 @@ particles = {
 
 -->8
 -- util
+
+-- inplace deduplicate
+function table_dedup(x)
+    result = {}
+    index = {}
+    for t in all(x) do
+        if not index[t] then
+            index[t] = true
+            add(result, t)
+        end
+    end
+    return result
+end
 
 function table_concat(t1, t2)
     local tc = {}
@@ -1034,6 +1046,7 @@ function draw_won()
     print(won_text, 38, vcenter(won_text), 12)
     print(won_text, 38, vcenter(won_text)+10, 13)
     print(won_text, 38, vcenter(won_text)+20, 14)
+    draw_particles()
 end
 
 function draw_level_splash_2(l)
@@ -1172,10 +1185,29 @@ end
 
 function draw_ui()
     if is_stuck() then
+        -- "restart"
+        stuck_text = "press \151 to restart"
         print(stuck_text, hcenter(stuck_text), vcenter(stuck_text), 7)
-        local stuck_tile = get_dynamic_or_static_tile_class(pl.x, pl.y)
-        local explain_text = pl.display_name.." can't "..tile_display_names[stuck_tile]
-        print(explain_text, hcenter(explain_text), vcenter(explain_text) + 8, 7)
+
+        -- "gota can't"
+        local explain_txt_animal = pl.display_name.." can't"
+        print(explain_txt_animal, hcenter(explain_txt_animal), vcenter(explain_txt_animal) + 8, 7)
+
+        -- trees or ground
+        local explain_txt_tiles = ""
+        local surr_tiles = {
+            tile_display_names[get_dynamic_or_static_tile_class(pl.x+1, pl.y)],
+            tile_display_names[get_dynamic_or_static_tile_class(pl.x-1, pl.y)],
+            tile_display_names[get_dynamic_or_static_tile_class(pl.x, pl.y+1)],
+            tile_display_names[get_dynamic_or_static_tile_class(pl.x, pl.y-1)],
+        }
+        surr_tiles = table_dedup(surr_tiles)
+        if (surr_tiles[1] == surr_tiles[2]) debug_log("true")
+        for i=1,#surr_tiles do
+            if (i > 1) explain_txt_tiles ..= " or "
+            explain_txt_tiles ..= surr_tiles[i]
+        end
+        print(explain_txt_tiles, hcenter(explain_txt_tiles), vcenter(explain_txt_tiles) + 16, 7)
     end
 end
 
