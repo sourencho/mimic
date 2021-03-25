@@ -7,7 +7,7 @@ __lua__
 -- DATA
 
 -- SETTINGS
-start_level = 10
+start_level = 0
 
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
@@ -145,6 +145,7 @@ player_sfx.move[rock]=4
 player_sfx.move[rock_small]=4
 player_sfx.move[water]=5
 player_sfx.move[cloud]=16
+player_sfx.move[cloud_small]=16
 player_sfx.transform=2
 die_sfx=8
 change_pattern_sfx = 10
@@ -639,6 +640,9 @@ function player_input()
             -- noop
         end
     end
+
+    -- prevent diagonal movement
+    if (pl.dx != 0) pl.dy = 0
 end
 
 function reset_player_pattern()
