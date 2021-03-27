@@ -394,7 +394,6 @@ end
 
 -- returns the next move according to the pattern offset by i
 function get_pattern_move_offset(a, i)
-    print(a.display_name)
     return a.pattern[((a.t + i) % #a.pattern) + 1]
 end
 
@@ -728,6 +727,7 @@ function player_mimic()
                 pl.spr = a.spr
                 pl.spr_2 = a.spr_2
                 pl.display_name = a.display_name
+                if (a.spr_2 != nil) pl.display_name = "chimera"
                 reset_player_pattern()
             end
         end
