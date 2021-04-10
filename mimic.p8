@@ -23,7 +23,7 @@ won_text = "★ you win ★"
 level_size = 16
 level_count = 11
 
-debug_mode = false
+debug_mode = true
 debug = "DEBUG\n"
 
 -- spr numbers
@@ -629,7 +629,14 @@ function player_input()
     if (btnp(1)) pl.dx = 1
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
-    if (btnp(4)) transform_vfx(actors[1])
+    if (btnp(4) and debug_mode) then
+        fuzzy_str_line_vfx(16, 16, 40, 16, 8, 6)
+        fuzzy_str_line_vfx(40, 16, 40, 32, 8, 6)
+        fuzzy_str_line_vfx(40, 32, 32, 32, 8, 6)
+        fuzzy_str_line_vfx(32, 32, 32, 24, 8, 6)
+        fuzzy_str_line_vfx(32, 24, 16, 24, 8, 6)
+        fuzzy_str_line_vfx(16, 24, 16, 16, 8, 6)
+    end
     if (btnp(5)) then
         if game.state == "splash" then
             game.state = "play"
@@ -910,6 +917,51 @@ function box_vfx(x, y, col)
         meta_data = {}, 
     }
     add(particles, box_particle)
+end
+
+function fuzzy_str_line_vfx(x1, y1, x2, y2, col, col2)
+    local line_particle = {
+        pos = {{x1, y1}, {x2, y2}},
+        col = col,
+        draw_fn = draw_fuzzy_str_line,
+        start_tick = game.tick,
+        end_tick = game.tick + 30,
+        meta_data = {col2 = col2}
+    }
+    add(particles, line_particle)
+end
+
+function draw_fuzzy_str_line(pos, col, curr_tick, start_tick, end_tick, meta_data)
+    local x = pos[1][1]
+    local y = pos[1][2]
+    local x2 = pos[2][1]
+    local y2 = pos[2][2]
+    if x == x2 then
+        dx = 0
+        if y2 > y then dy = 1 else dy = -1 end
+    else
+        if x2 > x then dx = 1 else dx = -1 end
+        dy = 0
+    end
+    while x != x2 or y != y2 do
+        local r = rnd()
+        local rx = 0
+        local ry = 0
+        local c = col
+        if (rnd() > 0.5) c = meta_data["col2"]
+        if dx == 0 then
+            rx = flr(rnd(3)) - 2
+        else
+            ry = flr(rnd(3)) - 2 
+        end
+        if r > 0.8 then
+            circfill(x + rx, y + ry, 0, c)
+        elseif r > 0.77 then
+            circfill(x + rx, y + ry, 1, c)
+        end
+        x += dx
+        y += dy
+    end
 end
 
 function draw_box(pos, col, curr_tick, start_tick, end_tick, meta_data)
@@ -1222,6 +1274,8 @@ end
 
 function draw_debug()
     print(debug, 0, 0, 11)
+    print("mem: "..stat(0),80,0,7)
+    print("cpu: "..stat(1),80,10,7)
 end
 
 function debug_log(s)
