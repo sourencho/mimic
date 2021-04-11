@@ -245,6 +245,33 @@ function contains(xs, e)
     return false
 end
 
+function contains_pair(xs, e)
+    for x in all(xs) do
+        if (pair_equal(x, e)) return true
+    end
+    return false
+end
+
+-- returns array of start and end pos of lines that form a tile
+function get_tile_lines(t)
+    r = t[1]
+    c = t[2]
+    return {
+        top = {{r*8, c*8}, {r*8 + 8, c*8}},
+        right = {{r*8 + 8, c*8}, {r*8 + 8, c*8 + 8}},
+        bot = {{r*8 + 8, c*8 + 8}, {r*8, c*8 + 8}},
+        left = {{r*8, c*8 + 8}, {r*8, c*8}},
+    }
+end
+
+-- given two adj tiles, return directions from first to second and vice-versa
+function tile_pair_dirs(t1, t2)
+    if (t1[1] < t2[1]) return {"right", "left"}
+    if (t1[1] > t2[1]) return {"left", "right"}
+    if (t1[2] < t2[2]) return {"top", "bot"}
+    if (t1[2] > t2[2]) return {"bot", "top"}
+end
+
 -- compute magnitude of v
 function v_mag(v)
   return sqrt((v[1] * v[1]) + (v[2] * v[2]))
@@ -630,12 +657,13 @@ function player_input()
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
     if (btnp(4) and debug_mode) then
-        fuzzy_str_line_vfx(16, 16, 40, 16, 8, 6)
-        fuzzy_str_line_vfx(40, 16, 40, 32, 8, 6)
-        fuzzy_str_line_vfx(40, 32, 32, 32, 8, 6)
-        fuzzy_str_line_vfx(32, 32, 32, 24, 8, 6)
-        fuzzy_str_line_vfx(32, 24, 16, 24, 8, 6)
-        fuzzy_str_line_vfx(16, 24, 16, 16, 8, 6)
+        transform_vfx(actors[1])
+        -- fuzzy_str_line_vfx(16, 16, 40, 16, 8, 6)
+        -- fuzzy_str_line_vfx(40, 16, 40, 32, 8, 6)
+        -- fuzzy_str_line_vfx(40, 32, 32, 32, 8, 6)
+        -- fuzzy_str_line_vfx(32, 32, 32, 24, 8, 6)
+        -- fuzzy_str_line_vfx(32, 24, 16, 24, 8, 6)
+        -- fuzzy_str_line_vfx(16, 24, 16, 16, 8, 6)
     end
     if (btnp(5)) then
         if game.state == "splash" then
@@ -799,7 +827,8 @@ function merge_animals(a, b)
 end
 
 -- get the postitions of the tiles the actor's pattern covers
-function get_pattern_coords(a)
+-- TODO(sourencho): this needs to be in order for transform_vfx to work
+function get_pattern_tile_coords(a)
     local coords = {}
     local loc = {a.x, a.y}
     for i=0,8 do
@@ -808,7 +837,9 @@ function get_pattern_coords(a)
             loc[1] + pattern_move[1],
             loc[2] + pattern_move[2],
         }
-        add(coords, new_loc)
+        if (not contains_pair(coords, new_loc)) then
+            add(coords, new_loc)
+        end
         loc = new_loc
     end
     return coords
@@ -1053,7 +1084,30 @@ end
 
 function transform_vfx(a)
     if (not debug_mode) return 
-    for pos in all(get_pattern_coords(a)) do
+    local tiles = get_pattern_tile_coords(a)
+    local remove = {} -- line to remove from each tile
+    for i=1,#tiles-1 do
+        for j=i+1,#tiles do
+            -- border lines to remove
+            local dirs = tile_pair_dirs(tiles[i], tiles[j])
+            add(remove, dirs[1])
+            add(remove, dirs[2])
+        end
+    end
+    for i=1,#tiles do
+        -- draw lines
+        local t = tiles[i]
+        local lines = get_tile_lines(t)
+        for k, l in pairs(lines) do
+            if (k != remove[i]) fuzzy_str_line_vfx(l[1][1], l[1][2], l[2][1], l[2][2], 8, 6)
+        end
+    end
+
+end
+
+function transform_vfx_2(a)
+    if (not debug_mode) return 
+    for pos in all(get_pattern_tile_coords(a)) do
         box_vfx(pos[1], pos[2], 8)
     end
 end
