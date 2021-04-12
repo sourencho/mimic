@@ -7,7 +7,7 @@ __lua__
 -- DATA
 
 -- SETTINGS
-start_level = 0
+start_level = 2
 
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
@@ -257,19 +257,35 @@ function get_tile_lines(t)
     r = t[1]
     c = t[2]
     return {
-        top = {{r*8, c*8}, {r*8 + 8, c*8}},
+        bot = {{r*8, c*8}, {r*8 + 8, c*8}},
         right = {{r*8 + 8, c*8}, {r*8 + 8, c*8 + 8}},
-        bot = {{r*8 + 8, c*8 + 8}, {r*8, c*8 + 8}},
+        top = {{r*8 + 8, c*8 + 8}, {r*8, c*8 + 8}},
         left = {{r*8, c*8 + 8}, {r*8, c*8}},
     }
 end
 
+function sort(a,cmp)
+    for i=1,#a do
+        local j = i
+            while j > 1 and cmp(a[j-1],a[j]) do
+                a[j],a[j-1] = a[j-1],a[j]
+                j = j - 1
+        end
+    end
+end
+
+-- sorts tiles in increasing x and y coord
+function sort_tiles(ts)
+    sort(ts, function(a, b) return a[1] > b[1] end)
+    sort(ts, function(a, b) return a[2] > b[2] end)
+end
+
 -- given two adj tiles, return directions from first to second and vice-versa
 function tile_pair_dirs(t1, t2)
-    if (t1[1] < t2[1]) return {"right", "left"}
-    if (t1[1] > t2[1]) return {"left", "right"}
-    if (t1[2] < t2[2]) return {"top", "bot"}
-    if (t1[2] > t2[2]) return {"bot", "top"}
+    if (t1[1] < t2[1]) return {"left", "right"}
+    if (t1[1] > t2[1]) return {"right", "left"}
+    if (t1[2] < t2[2]) return {"bot", "top"}
+    if (t1[2] > t2[2]) return {"top", "bot"}
 end
 
 -- compute magnitude of v
@@ -657,7 +673,7 @@ function player_input()
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
     if (btnp(4) and debug_mode) then
-        transform_vfx(actors[1])
+        transform_vfx(actors[2])
         -- fuzzy_str_line_vfx(16, 16, 40, 16, 8, 6)
         -- fuzzy_str_line_vfx(40, 16, 40, 32, 8, 6)
         -- fuzzy_str_line_vfx(40, 32, 32, 32, 8, 6)
@@ -827,7 +843,6 @@ function merge_animals(a, b)
 end
 
 -- get the postitions of the tiles the actor's pattern covers
--- TODO(sourencho): this needs to be in order for transform_vfx to work
 function get_pattern_tile_coords(a)
     local coords = {}
     local loc = {a.x, a.y}
@@ -1084,28 +1099,40 @@ end
 
 function transform_vfx(a)
     if (not debug_mode) return 
+
+    -- get tiles
     local tiles = get_pattern_tile_coords(a)
-    local remove = {} -- line to remove from each tile
-    for i=1,#tiles-1 do
-        for j=i+1,#tiles do
-            -- border lines to remove
-            local dirs = tile_pair_dirs(tiles[i], tiles[j])
-            add(remove, dirs[1])
-            add(remove, dirs[2])
-        end
-    end
+    -- TODO: Sort doesnt actually give you the animals move dir
+    -- goat pattern not working
+    sort_tiles(tiles)
+
+    -- gen lines
+    tile_lines = {}
     for i=1,#tiles do
-        -- draw lines
-        local t = tiles[i]
-        local lines = get_tile_lines(t)
-        for k, l in pairs(lines) do
-            if (k != remove[i]) fuzzy_str_line_vfx(l[1][1], l[1][2], l[2][1], l[2][2], 8, 6)
+        add(tile_lines, get_tile_lines(tiles[i]))
+    end
+
+    -- remove adj lines
+    for i=1,#tiles-1 do
+        local j = i + 1
+        -- border lines to remove
+        local dirs = tile_pair_dirs(tiles[i], tiles[j])
+        tile_lines[i][dirs[2]] = nil
+        tile_lines[j][dirs[1]] = nil
+        debug_log(i.." "..dirs[2].." "..pair_str(tiles[i]))
+        debug_log(j.." "..dirs[1].." "..pair_str(tiles[j]))
+    end
+
+    -- draw lines
+    for i=1,#tiles do
+        for k, l in pairs(tile_lines[i]) do
+            fuzzy_str_line_vfx(l[1][1], l[1][2], l[2][1], l[2][2], 8, 6)
         end
     end
 
 end
 
-function transform_vfx_2(a)
+function transform_vfx_crude(a)
     if (not debug_mode) return 
     for pos in all(get_pattern_tile_coords(a)) do
         box_vfx(pos[1], pos[2], 8)
