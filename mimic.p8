@@ -24,6 +24,7 @@ level_size = 16
 level_count = 11
 
 debug_mode = true
+SHOW_STATS = false
 debug = "DEBUG\n"
 
 -- spr numbers
@@ -264,6 +265,11 @@ function get_tile_lines(t)
     }
 end
 
+function are_tiles_adj(t1, t2)
+    if (abs(t1[1] - t2[1]) + abs(t1[2] - t2[2]) == 1) return true
+    return false
+end
+
 function sort(a,cmp)
     for i=1,#a do
         local j = i
@@ -272,12 +278,6 @@ function sort(a,cmp)
                 j = j - 1
         end
     end
-end
-
--- sorts tiles in increasing x and y coord
-function sort_tiles(ts)
-    sort(ts, function(a, b) return a[1] > b[1] end)
-    sort(ts, function(a, b) return a[2] > b[2] end)
 end
 
 -- given two adj tiles, return directions from first to second and vice-versa
@@ -673,13 +673,7 @@ function player_input()
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
     if (btnp(4) and debug_mode) then
-        transform_vfx(actors[2])
-        -- fuzzy_str_line_vfx(16, 16, 40, 16, 8, 6)
-        -- fuzzy_str_line_vfx(40, 16, 40, 32, 8, 6)
-        -- fuzzy_str_line_vfx(40, 32, 32, 32, 8, 6)
-        -- fuzzy_str_line_vfx(32, 32, 32, 24, 8, 6)
-        -- fuzzy_str_line_vfx(32, 24, 16, 24, 8, 6)
-        -- fuzzy_str_line_vfx(16, 24, 16, 16, 8, 6)
+        transform_vfx(actors[1])
     end
     if (btnp(5)) then
         if game.state == "splash" then
@@ -1102,9 +1096,6 @@ function transform_vfx(a)
 
     -- get tiles
     local tiles = get_pattern_tile_coords(a)
-    -- TODO: Sort doesnt actually give you the animals move dir
-    -- goat pattern not working
-    sort_tiles(tiles)
 
     -- gen lines
     tile_lines = {}
@@ -1114,19 +1105,21 @@ function transform_vfx(a)
 
     -- remove adj lines
     for i=1,#tiles-1 do
-        local j = i + 1
-        -- border lines to remove
-        local dirs = tile_pair_dirs(tiles[i], tiles[j])
-        tile_lines[i][dirs[2]] = nil
-        tile_lines[j][dirs[1]] = nil
-        debug_log(i.." "..dirs[2].." "..pair_str(tiles[i]))
-        debug_log(j.." "..dirs[1].." "..pair_str(tiles[j]))
+        for j=i+1,#tiles do
+            local t1, t2 = tiles[i], tiles[j]
+            if are_tiles_adj(t1, t2) then
+                -- border lines to remove
+                local dirs = tile_pair_dirs(tiles[i], tiles[j])
+                tile_lines[i][dirs[2]] = nil
+                tile_lines[j][dirs[1]] = nil
+            end
+        end
     end
 
     -- draw lines
     for i=1,#tiles do
         for k, l in pairs(tile_lines[i]) do
-            fuzzy_str_line_vfx(l[1][1], l[1][2], l[2][1], l[2][2], 8, 6)
+            fuzzy_str_line_vfx(l[1][1], l[1][2], l[2][1], l[2][2], 8, get_spr_col(a.spr))
         end
     end
 
@@ -1355,8 +1348,10 @@ end
 
 function draw_debug()
     print(debug, 0, 0, 11)
-    print("mem: "..stat(0),80,0,7)
-    print("cpu: "..stat(1),80,10,7)
+    if SHOW_STATS then
+        print("mem: "..stat(0),80,0,7)
+        print("cpu: "..stat(1),80,10,7)
+    end
 end
 
 function debug_log(s)
