@@ -25,7 +25,7 @@ level_count = 11
 
 debug_mode = true
 SHOW_STATS = false
-debug_title = "DEBUG\n"
+debug = "DEBUG\n"
 
 -- spr numbers
 fish_spr = 7
@@ -541,7 +541,7 @@ function update_pattern(a, new_move)
     -- vfx
     local frame_len = #a.pattern - 1
     sfx(change_pattern_sfx)
-    transform_vfx(a)
+    transform_vfx(a, get_spr_col(a.spr))
     confused_effects(a, new_move, old_move)
     pause(slow_speed * 2)
 end
@@ -649,8 +649,8 @@ end
 
 player_spr = 5
 player_pattern = {}
-player_pattern_i = 0
-player_pattern_size = 10 -- must be 1 longer than the max npc pattern length
+player_pattern_i = 1
+player_pattern_size = 10 -- must be at least 1 longer than the max npc pattern length
 player_move_abilities = {ground, win}
 player_push_abilities = {rock_small, tree_small, cloud_small}
 
@@ -673,7 +673,7 @@ function player_input()
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
     if (btnp(4) and debug_mode) then
-        transform_vfx(actors[1])
+        transform_vfx(pl)
     end
     if (btnp(5)) then
         if game.state == "splash" then
@@ -709,6 +709,8 @@ function update_player(p)
         game.level_end_tick = game.tick
         return
     end
+
+    p.t += 1
 
     -- save player pattern
     player_pattern_i += 1
@@ -765,7 +767,8 @@ function player_mimic()
             if is_mimic(player_pattern, a.pattern, player_pattern_size, player_pattern_i) then
                 if(pl.spr != a.spr) then
                     play_player_sfx("transform")
-                    transform_vfx(a)
+                    transform_vfx(a, 8)
+                    transform_vfx(pl, get_spr_col(a.spr))
                 end
                 pl.move_abilities = copy_table(a.move_abilities)
                 pl.push_abilities = copy_table(a.push_abilities)
@@ -789,8 +792,8 @@ function animal_mimic()
                a.no_trans_count <= 0 and b.no_trans_count <= 0 then
                 merge_animals(a, b)
                 play_player_sfx("transform")
-                transform_vfx(a)
-                transform_vfx(b)
+                transform_vfx(a, get_spr_col(b.spr))
+                transform_vfx(b, get_spr_col(a.spr))
             end
         end
     end
@@ -840,7 +843,7 @@ end
 function get_pattern_tile_coords(a)
     local coords = {}
     local loc = {a.x, a.y}
-    for i=0,8 do
+    for i=0,7 do
         local pattern_move = get_pattern_move_offset(a, i)
         local new_loc = {
             loc[1] + pattern_move[1],
@@ -851,6 +854,31 @@ function get_pattern_tile_coords(a)
         end
         loc = new_loc
     end
+    return coords
+end
+
+function get_player_pattern_coords()
+    local coords = {}
+    for i=3,1,-1 do
+        local p_i = ((player_pattern_i - i) % player_pattern_size) + 1
+        local pattern_move = player_pattern[p_i]
+        add(coords, pattern_move)
+    end
+    return rev_pattern(coords)
+end
+
+function get_player_pattern_tile_coords()
+    local coords = {}
+    local loc = {pl.x, pl.y}
+    for pattern_move in all(get_player_pattern_coords()) do
+        local new_loc = {
+            loc[1] - pattern_move[1],
+            loc[2] - pattern_move[2],
+        }
+        add(coords, new_loc)
+        loc = new_loc
+    end
+    add(coords, {pl.x, pl.y})
     return coords
 end
 
@@ -1095,9 +1123,14 @@ function win_vfx(pos)
     explode_vfx(pos, 10, 1.5, 40, 30, 90, 0.3, 1.5)
 end
 
-function transform_vfx(a)
+function transform_vfx(a, col1, col2)
     -- get tiles
-    local tiles = get_pattern_tile_coords(a)
+    local tiles
+    if is_player(a) then
+        tiles = get_player_pattern_tile_coords(a)
+    else
+        tiles = get_pattern_tile_coords(a)
+    end
 
     -- gen lines
     tile_lines = {}
@@ -1121,7 +1154,7 @@ function transform_vfx(a)
     -- draw lines
     for i=1,#tiles do
         for k, l in pairs(tile_lines[i]) do
-            fuzz_line_vfx(l, 8, get_spr_col(a.spr))
+            fuzz_line_vfx(l, col1, col2)
         end
     end
 
@@ -1349,7 +1382,7 @@ end
 -- debug
 
 function draw_debug()
-    print(debug_title, 0, 0, 11)
+    print(debug, 0, 0, 8)
     if SHOW_STATS then
         print("mem: "..stat(0),80,0,7)
         print("cpu: "..stat(1),80,10,7)
@@ -1358,7 +1391,7 @@ end
 
 function debug_log(s)
     if(s == null) s = "nil"
-    debug..=s.."\n"
+    debug = s.."\n"..debug
 end
 
 function debug_log_table(xs)
