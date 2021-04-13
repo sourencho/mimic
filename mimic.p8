@@ -25,7 +25,7 @@ level_count = 11
 
 debug_mode = true
 SHOW_STATS = false
-debug = "DEBUG\n"
+debug_title = "DEBUG\n"
 
 -- spr numbers
 fish_spr = 7
@@ -959,23 +959,11 @@ function box_vfx(x, y, col)
     add(particles, box_particle)
 end
 
-function fuzzy_str_line_vfx(x1, y1, x2, y2, col, col2)
-    local line_particle = {
-        pos = {{x1, y1}, {x2, y2}},
-        col = col,
-        draw_fn = draw_fuzzy_str_line,
-        start_tick = game.tick,
-        end_tick = game.tick + 30,
-        meta_data = {col2 = col2}
-    }
-    add(particles, line_particle)
-end
-
-function draw_fuzzy_str_line(pos, col, curr_tick, start_tick, end_tick, meta_data)
-    local x = pos[1][1]
-    local y = pos[1][2]
-    local x2 = pos[2][1]
-    local y2 = pos[2][2]
+function fuzz_line_vfx(l, col, col2)
+    local x = l[1][1]
+    local y = l[1][2]
+    local x2 = l[2][1]
+    local y2 = l[2][2]
     if x == x2 then
         dx = 0
         if y2 > y then dy = 1 else dy = -1 end
@@ -983,25 +971,41 @@ function draw_fuzzy_str_line(pos, col, curr_tick, start_tick, end_tick, meta_dat
         if x2 > x then dx = 1 else dx = -1 end
         dy = 0
     end
+    local i = 0
     while x != x2 or y != y2 do
-        local r = rnd()
-        local rx = 0
-        local ry = 0
         local c = col
-        if (rnd() > 0.5) c = meta_data["col2"]
-        if dx == 0 then
-            rx = flr(rnd(3)) - 2
-        else
-            ry = flr(rnd(3)) - 2 
+        local s = 0
+        -- if (rnd() > 0.5) c = col2
+        if (rnd() > 0.8) s = 1
+        if i % 2 == 0 then
+            fuzz = {
+                pos = {x, y},
+                col = c,
+                draw_fn = draw_fuzz,
+                start_tick = game.tick,
+                end_tick = game.tick + flr(rnd(10)) + 20,
+                meta_data = {
+                    size = s,
+                    speed = 2,
+                    dx = 0,
+                    dy = 0
+                },
+            }
+            add(particles, fuzz)
         end
-        if r > 0.8 then
-            circfill(x + rx, y + ry, 0, c)
-        elseif r > 0.77 then
-            circfill(x + rx, y + ry, 1, c)
-        end
+        i += 1
         x += dx
         y += dy
     end
+
+end
+
+function draw_fuzz(pos, col, curr_tick, start_tick, end_tick, meta_data)
+    if (curr_tick - start_tick) % meta_data["speed"] == 0 then
+        meta_data["dx"] = flr(rnd(3)) - 1
+        meta_data["dy"] = flr(rnd(3)) - 1
+    end
+    circfill(pos[1] + meta_data["dx"], pos[2] + meta_data["dy"], meta_data["size"], col)
 end
 
 function draw_box(pos, col, curr_tick, start_tick, end_tick, meta_data)
@@ -1092,8 +1096,6 @@ function win_vfx(pos)
 end
 
 function transform_vfx(a)
-    if (not debug_mode) return 
-
     -- get tiles
     local tiles = get_pattern_tile_coords(a)
 
@@ -1119,7 +1121,7 @@ function transform_vfx(a)
     -- draw lines
     for i=1,#tiles do
         for k, l in pairs(tile_lines[i]) do
-            fuzzy_str_line_vfx(l[1][1], l[1][2], l[2][1], l[2][2], 8, get_spr_col(a.spr))
+            fuzz_line_vfx(l, 8, get_spr_col(a.spr))
         end
     end
 
@@ -1347,7 +1349,7 @@ end
 -- debug
 
 function draw_debug()
-    print(debug, 0, 0, 11)
+    print(debug_title, 0, 0, 11)
     if SHOW_STATS then
         print("mem: "..stat(0),80,0,7)
         print("cpu: "..stat(1),80,10,7)
