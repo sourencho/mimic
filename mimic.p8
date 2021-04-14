@@ -7,7 +7,7 @@ __lua__
 -- DATA
 
 -- SETTINGS
-start_level = 2
+start_level = 0
 
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
@@ -23,7 +23,7 @@ won_text = "★ you win ★"
 level_size = 16
 level_count = 11
 
-debug_mode = true
+debug_mode = false
 SHOW_STATS = false
 debug = "DEBUG\n"
 
@@ -229,6 +229,7 @@ function pair_equal(a, b)
 end
 
 function get_spr_col(spr_n)
+    if (spr_n == nil) return nil
     local spr_page = flr(spr_n / 64)
     local spr_row = flr((spr_n % 64) / 16)
     local spr_col = (spr_n % 64) % 16
@@ -541,9 +542,9 @@ function update_pattern(a, new_move)
     -- vfx
     local frame_len = #a.pattern - 1
     sfx(change_pattern_sfx)
-    transform_vfx(a, get_spr_col(a.spr))
-    confused_effects(a, new_move, old_move)
-    pause(slow_speed * 2)
+    confused_effects(a, new_move, old_move, 60)
+    transform_vfx(a, get_spr_col(a.spr), 60, get_spr_col(a.spr_2))
+    -- pause(slow_speed * 2)
 end
 
 function update_actor(a)
@@ -673,7 +674,7 @@ function player_input()
     if (btnp(2)) pl.dy = -1
     if (btnp(3)) pl.dy = 1
     if (btnp(4) and debug_mode) then
-        transform_vfx(pl)
+        transform_vfx(pl, 8, 20, 7)
     end
     if (btnp(5)) then
         if game.state == "splash" then
@@ -767,8 +768,8 @@ function player_mimic()
             if is_mimic(player_pattern, a.pattern, player_pattern_size, player_pattern_i) then
                 if(pl.spr != a.spr) then
                     play_player_sfx("transform")
-                    transform_vfx(a, 8)
-                    transform_vfx(pl, get_spr_col(a.spr))
+                    transform_vfx(a, 8, 20)
+                    transform_vfx(pl, get_spr_col(a.spr), 20, get_spr_col(a.spr_2))
                 end
                 pl.move_abilities = copy_table(a.move_abilities)
                 pl.push_abilities = copy_table(a.push_abilities)
@@ -792,8 +793,8 @@ function animal_mimic()
                a.no_trans_count <= 0 and b.no_trans_count <= 0 then
                 merge_animals(a, b)
                 play_player_sfx("transform")
-                transform_vfx(a, get_spr_col(b.spr))
-                transform_vfx(b, get_spr_col(a.spr))
+                transform_vfx(a, get_spr_col(b.spr), 20, get_spr_col(a.spr_2))
+                transform_vfx(b, get_spr_col(a.spr), 20, get_spr_col(b.spr_2))
             end
         end
     end
@@ -987,7 +988,7 @@ function box_vfx(x, y, col)
     add(particles, box_particle)
 end
 
-function fuzz_line_vfx(l, col, col2)
+function fuzz_line_vfx(l, col, dur, col2)
     local x = l[1][1]
     local y = l[1][2]
     local x2 = l[2][1]
@@ -1003,15 +1004,15 @@ function fuzz_line_vfx(l, col, col2)
     while x != x2 or y != y2 do
         local c = col
         local s = 0
-        -- if (rnd() > 0.5) c = col2
-        if (rnd() > 0.8) s = 1
+        if (rnd() > 0.9) s = 1
+        if (col2 != nil and rnd() > 0.5) c = col2
         if i % 2 == 0 then
             fuzz = {
-                pos = {x, y},
+                pos = {x + flr(rnd(3)) - 1, y + flr(rnd(3)) - 1},
                 col = c,
                 draw_fn = draw_fuzz,
                 start_tick = game.tick,
-                end_tick = game.tick + flr(rnd(10)) + 20,
+                end_tick = game.tick + flr(rnd(10)) + dur,
                 meta_data = {
                     size = s,
                     speed = 2,
@@ -1029,7 +1030,7 @@ function fuzz_line_vfx(l, col, col2)
 end
 
 function draw_fuzz(pos, col, curr_tick, start_tick, end_tick, meta_data)
-    if (curr_tick - start_tick) % meta_data["speed"] == 0 then
+    if (curr_tick - start_tick) % meta_data["speed"] == 1 then
         meta_data["dx"] = flr(rnd(3)) - 1
         meta_data["dy"] = flr(rnd(3)) - 1
     end
@@ -1069,35 +1070,11 @@ function draw_blocked_cross(pos, col, curr_tick, start_tick, end_tick, meta_data
 end
 
 -- confused effect when animal needs to change pattern
-function confused_effects(a, new_move, old_move)
-    local actor_col = get_spr_col(a.spr)
-    local confused_animal_particle = {
-        pos = {a.x*8, a.y*8},
-        col = 8,
-        draw_fn = draw_confused_animal,
-        start_tick = game.tick,
-        end_tick = game.tick,
-        meta_data = {},
-    }
-    local new_dest_particle = {
-        pos = {(a.x + new_move[1])*8, (a.y + new_move[2])*8},
-        col = actor_col,
-        draw_fn = draw_cross,
-        start_tick = game.tick,
-        end_tick = game.tick,
-        meta_data = {},
-    }
-    local blocked_dest_particle = {
-        pos = {(a.x + old_move[1])*8, (a.y + old_move[2])*8},
-        col = actor_col,
-        draw_fn = draw_dot,
-        start_tick = game.tick,
-        end_tick = game.tick,
-        meta_data = {},
-    }
-    add(particles, confused_animal_particle)
-    add(particles, blocked_dest_particle)
-    -- add(particles, new_dest_particle)
+function confused_effects(a, new_move, old_move, dur)
+    local blocked_tile = {(a.x + old_move[1]), (a.y + old_move[2])}
+    for k, l in pairs(get_tile_lines(blocked_tile)) do
+        fuzz_line_vfx(l, 8, dur)
+    end
 end
 
 -- heart pops up when you meet an animal
@@ -1123,7 +1100,7 @@ function win_vfx(pos)
     explode_vfx(pos, 10, 1.5, 40, 30, 90, 0.3, 1.5)
 end
 
-function transform_vfx(a, col1, col2)
+function transform_vfx(a, col1, dur, col2)
     -- get tiles
     local tiles
     if is_player(a) then
@@ -1154,7 +1131,7 @@ function transform_vfx(a, col1, col2)
     -- draw lines
     for i=1,#tiles do
         for k, l in pairs(tile_lines[i]) do
-            fuzz_line_vfx(l, col1, col2)
+            fuzz_line_vfx(l, col1, dur, col2)
         end
     end
 
