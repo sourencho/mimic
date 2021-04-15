@@ -8,6 +8,7 @@ __lua__
 
 -- SETTINGS
 start_level = 0
+skip_levels = {7}
 
 slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
@@ -705,6 +706,9 @@ function update_player(p)
     -- check player victory
     if is_static_tile(win, p.x, p.y) then
         change_level = game.level + 1
+        while contains(skip_levels, change_level) do
+            change_level += 1
+        end
         sfx(11)
         win_vfx({p.x, p.y})
         game.level_end_tick = game.tick
@@ -1223,6 +1227,8 @@ function draw_level_splash_2(l)
         level_text = i
         if (i < 10) level_text = "0"..level_text
         if (i == l) then txt_clr = 7 else txt_clr = 1 end
+        if (contains(skip_levels, i)) level_text = "xx"
+
 
         -- draw
         -- rect(x + padding, y + padding, x + size, y + size, box_clr)
@@ -1344,12 +1350,13 @@ function draw_ui()
 
         -- trees or ground
         local explain_txt_tiles = ""
-        local surr_tiles = {
-            tile_display_names[get_dynamic_or_static_tile_class(pl.x+1, pl.y)],
-            tile_display_names[get_dynamic_or_static_tile_class(pl.x-1, pl.y)],
-            tile_display_names[get_dynamic_or_static_tile_class(pl.x, pl.y+1)],
-            tile_display_names[get_dynamic_or_static_tile_class(pl.x, pl.y-1)],
-        }
+
+        local surr_tiles = {}
+        if (pl.x+1 < 16) add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(pl.x+1, pl.y)])
+        if (pl.x-1 > 0) add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(pl.x-1, pl.y)])
+        if (pl.y+1 < 16) add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(pl.x, pl.y+1)])
+        if (pl.y-1 > 1) add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(pl.x, pl.y-1)])
+
         surr_tiles = table_dedup(surr_tiles)
         if (surr_tiles[1] == surr_tiles[2]) debug_log("true")
         for i=1,#surr_tiles do
@@ -1421,6 +1428,9 @@ end
 
 function menu_skip_level()
     change_level = game.level + 1
+    while contains(skip_levels, change_level) do
+        change_level += 1
+    end
 end
 
 function menu_choose_level(b)
