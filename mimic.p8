@@ -180,6 +180,10 @@ particles = {
 -->8
 -- util
 
+function tern(cond, T, F)
+    if cond then return T else return F end
+end
+
 -- inplace deduplicate
 function table_dedup(x)
     result = {}
@@ -563,6 +567,8 @@ function update_actor(a)
 
         -- move
         if can_move(new_x, new_y, a) and not is_paused() then
+            -- fuzz_trail_vfx(a.x, a.y, new_x, new_y, tern(is_player(a), 8, get_spr_col(a.spr)))
+
             a.x = new_x
             a.y = new_y
 
@@ -980,6 +986,10 @@ end
 -->8
 -- vfx
 
+function fuzz_trail_vfx(r1, c1, r2, c2, col)
+    fuzz_line_vfx({{r1*8+4, c1*8+4}, {r2*8+4, c2*8+4}}, col, 2, nil, 3, 0)
+end
+
 function box_vfx(x, y, col)
     local box_particle = {
         pos = {x*8, y*8},
@@ -992,7 +1002,7 @@ function box_vfx(x, y, col)
     add(particles, box_particle)
 end
 
-function fuzz_line_vfx(l, col, dur, col2)
+function fuzz_line_vfx(l, col, dur, col2, speed, max_size)
     local x = l[1][1]
     local y = l[1][2]
     local x2 = l[2][1]
@@ -1008,10 +1018,10 @@ function fuzz_line_vfx(l, col, dur, col2)
     while x != x2 or y != y2 do
         local c = col
         local s = 0
-        if (rnd() > 0.9) s = 1
+        if (rnd() > 0.9) s = max_size
         if (col2 != nil and rnd() > 0.5) c = col2
         if i % 2 == 0 then
-            fuzz = {
+            local fuzz = {
                 pos = {x + flr(rnd(3)) - 1, y + flr(rnd(3)) - 1},
                 col = c,
                 draw_fn = draw_fuzz,
@@ -1019,7 +1029,7 @@ function fuzz_line_vfx(l, col, dur, col2)
                 end_tick = game.tick + flr(rnd(10)) + dur,
                 meta_data = {
                     size = s,
-                    speed = 2,
+                    speed = speed,
                     dx = 0,
                     dy = 0
                 },
@@ -1077,7 +1087,7 @@ end
 function confused_effects(a, new_move, old_move, dur)
     local blocked_tile = {(a.x + old_move[1]), (a.y + old_move[2])}
     for k, l in pairs(get_tile_lines(blocked_tile)) do
-        fuzz_line_vfx(l, 8, dur)
+        fuzz_line_vfx(l, 8, dur, 2, 1)
     end
 end
 
@@ -1135,7 +1145,7 @@ function transform_vfx(a, col1, dur, col2)
     -- draw lines
     for i=1,#tiles do
         for k, l in pairs(tile_lines[i]) do
-            fuzz_line_vfx(l, col1, dur, col2)
+            fuzz_line_vfx(l, col1, dur, col2, 2, 1)
         end
     end
 
@@ -1317,27 +1327,6 @@ function draw_particles()
     foreach(particles, draw_particle)
 end
 
-function draw_player_trail()
-    if (not show_trail) return
-
-    for m in all(player_trail) do
-        local draw_fn
-        if m.dx == 1 then
-            draw_fn = draw_trail_right_box
-        elseif m.dx == -1 then
-            draw_fn = draw_trail_left_box
-        elseif m.dy == 1 then
-            draw_fn = draw_trail_down_box
-        elseif m.dy == -1 then
-            draw_fn = draw_trail_up_box
-        else
-            return
-        end
-
-        draw_fn({m.from_x * 8, m.from_y * 8}, 7)
-    end
-end
-
 function draw_ui()
     if is_stuck() then
         -- "restart"
@@ -1509,7 +1498,6 @@ function draw_play()
         draw_level_splash_2(game.level)
     else
         draw_level()
-        draw_player_trail()
         draw_actors()
         draw_particles()
         draw_ui()
