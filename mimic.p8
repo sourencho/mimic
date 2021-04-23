@@ -81,6 +81,11 @@ tile_display_names = {
     [cloud_small] = "cloud"
 }
 
+UP = {0, -1}
+RIGHT = {1, 0}
+DOWN = {0, 1}
+LEFT = {-1, 0}
+
 -- GAME
 
 -- sprite values of tiles
@@ -100,35 +105,35 @@ game = {
 npcs = {
     {
         spr_n = fish_spr,
-        pattern = {{-1, 0}, {-1, 0}, {-1, 0}, {1, 0}, {1, 0}, {1, 0}},
+        pattern = {LEFT, LEFT, LEFT, RIGHT, RIGHT, RIGHT},
         move_abilities = {water, win},
         push_abilities = {},
         display_name = "fish",
     },
     {
         spr_n = sheep_spr,
-        pattern = {{0, -1}, {0, -1}, {1, 0}, {-1, 0}, {0, 1}, {0, 1}},
+        pattern = {UP, UP, RIGHT, LEFT, DOWN, DOWN},
         move_abilities = {rock, rock_small, win},
         push_abilities = {},
         display_name = "goat",
     },
     {
         spr_n = butter_spr,
-        pattern = {{0, 1}, {0, 1}, {0, 1}, {0, -1} , {0, -1}, {0, -1}},
+        pattern = {DOWN, DOWN, DOWN, UP , UP, UP},
         move_abilities = {tree, tree_small, win},
         push_abilities = {},
         display_name = "butterfly",
     },
     {
         spr_n = bird_spr,
-        pattern = {{1, 0}, {0, -1}, {1, 0}, {-1, 0} , {0, 1}, {-1, 0}},
+        pattern = {RIGHT, UP, RIGHT, LEFT , DOWN, LEFT},
         move_abilities = {cloud, cloud_small, win},
         push_abilities = {},
         display_name = "bird",
     },
     {
         spr_n = frog_spr,
-        pattern = {{0, -1}, {-1, 0}, {0, -1}, {0, 1} , {1, 0}, {0, 1}},
+        pattern = {UP, LEFT, UP, DOWN , RIGHT, DOWN},
         move_abilities = {ground, water, win},
         push_abilities = {tree_small, rock_small},
         display_name = "frog",
@@ -219,9 +224,9 @@ end
 -- e.g. given UP will return LEFT and RIGHT
 function get_perp_moves(move)
     if move[1] == 0 then
-        return {{-1, 0}, {1, 0}}
+        return {LEFT, RIGHT}
     else
-        return {{0, -1}, {0, 1}}
+        return {UP, DOWN}
     end
 end
 
