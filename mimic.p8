@@ -1244,16 +1244,12 @@ end
 
 function draw_won()
     cls()
-    print(won_text, 38, vcenter(won_text)-30, 9)
-    print(won_text, 38, vcenter(won_text)-20, 10)
-    print(won_text, 38, vcenter(won_text)-10, 11)
-    print(won_text, 38, vcenter(won_text), 12)
-    print(won_text, 38, vcenter(won_text)+10, 13)
-    print(won_text, 38, vcenter(won_text)+20, 14)
-    if game.tick % 80 == 0 then
+    print(won_text, 38, vcenter(won_text)+1, 1)
+    print(won_text, 38, vcenter(won_text)+2, 9)
+    if game.tick % (flr(rnd(10)) + 40) == 0 then
         explode_vfx(
-            {mid(2, flr(rnd(16)), 13), mid(2, flr(rnd(16)), 13)},
-            flr(rnd(6)) + 9, 1.5, 40, 30, 60, 0.7, 1.5)
+            {mid(6, flr(rnd(16)), 10), mid(8, flr(rnd(16)), 8)},
+            9, 2, 40, 30, 60, 1.5, 2.5)
     end
     draw_particles()
 end
