@@ -165,7 +165,7 @@ npcs = {
         pattern = {DOWN, DOWN, DOWN, UP, UP, UP},
         move_abilities = {teru},
         push_abilities = {tree_small, rock_small},
-        display_name = "ラマ",
+        display_name = "purple",
         shape = {2, 1}
     }
 }
@@ -308,8 +308,11 @@ function get_tile_lines(t)
 end
 
 function are_tiles_adj(t1, t2)
-    if (abs(t1[1] - t2[1]) + abs(t1[2] - t2[2]) == 1) return true
-    return false
+    if (abs(t1[1] - t2[1]) + abs(t1[2] - t2[2]) == 1) then
+        return true
+    else
+        return false
+    end
 end
 
 function sort(a,cmp)
@@ -733,9 +736,16 @@ end
 -- player
 
 player_spr = {{5, nil}, {nil, nil}}
+
 player_pattern = {}
 player_pattern_i = 1
 player_pattern_size = 10 -- must be at least 1 longer than the max npc pattern length
+
+player_big_pattern = {}
+player_big_pattern_i = 1
+player_big_pattern_size = 10 -- must be at least 1 longer than the max npc pattern length
+
+
 player_move_abilities = {ground, win}
 player_push_abilities = {rock_small, tree_small, cloud_small}
 player_moved_this_update = false
@@ -814,26 +824,48 @@ end
 -->8
 -- game mechanic
 
+function player_big_mimic()
+    for shape_key, pair_actors in pairs(big_patterns) do
+        for a in all(actors) do
+            local a_shape_key = 10*a.shape[1] + a.shape[2]
+            if not is_player(a) and a_shape_key == shape_key then
+                for pair_actor, big_pattern in pairs(pair_actors) do
+                    if is_mimic(big_pattern, a.pattern, player_pattern_size, player_pattern_i) then
+                        debug_log("woah"
+                    end
+                end
+            end
+        end
+    end
+end
+
+function init_big_pattern(_level)
+    for shape, t in pairs(big_patterns) do
+        for a in all(actors) do
+            if not is_player(a) then
+                t[a] = {}
+                for i=1,player_pattern_size do
+                    add(t[a], {-1,-1})
+                end
+            end
+        end
+    end
+end
+
 function update_big_pattern()
     if (not player_moved_this_update) return
     for a in all(actors) do
         if not is_player(a) then
             local shape = form_shape(get_body(pl), get_body(a))
-            if (shape != nil) then
+            local pl_move = player_pattern[player_pattern_i]
+            local a_move = get_pattern_move_offset(a, -1)
+            if shape != nil and pair_equal(pl_move, a_move) then
                 local shape_key = 10*shape[1] + shape[2]
-                local big_move = player_pattern[player_pattern_i]
-                -- append to existing and erase those that didn't get appended to
-                for actor, big_pat in pairs(big_patterns[shape_key]) do
-                    if (actor == a) then 
-                        add(big_patterns[shape_key][actor], big_move)
-                    else
-                        big_patterns[shape_key][actor] = nil
-                    end
+                big_patterns[shape_key][a][player_pattern_i] = pl_move
+            else
+                for shape_key, actor in pairs(big_patterns) do
+                    big_patterns[shape_key][a][player_pattern_i] = {-1, -1}
                 end
-                if (big_patterns[shape_key][a] == nil) then
-                    big_patterns[shape_key][a] = {big_move} 
-                end
-                debug_log_big_pattern()
             end
         end
     end   
@@ -898,10 +930,6 @@ function player_mimic()
         end
     end
 end
-
-function player_big_mimic()
-end
-
 
 function animal_mimic()
     for a in all(actors) do
@@ -1039,6 +1067,7 @@ function init_level(_level)
     init_tiles(_level)
     init_actors(_level)
     init_player(_level)
+    init_big_pattern(_level)
     menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
 end
 
@@ -1549,7 +1578,7 @@ end
 function debug_log_big_pattern()
     for ss, as in pairs(big_patterns) do
         for a, pat in pairs(big_patterns[ss]) do
-            debug_log(ss.." "..a.display_name)
+            debug_log(ss.." "..a)
             debug_log_pair_table(pat)
         end
     end
@@ -1741,19 +1770,19 @@ __gfx__
 05052414051515751614171415151515000000000000000000000000000000001414140714141414243436342714141400000000000000000000000000000000
 167784848784848484978484c435353500000000007000000000000000000014141406141406061606f4e5f4f4e4f4e400000000000000000000000000000000
 15151414142514751614260714151515000000000072000000005100000000001417140714141414344644373414141400000000000000000000000000000000
-1675141735350535343505057684943700000000000000000000000000000014141416051416061616f4e4e4f4f4f4f500005100000000000000000000000000
+1675141735350535343505057684943700000000000000000000000000000014142416051416061616f4e4e4f4f4f4f500005100000000000000000000000000
 05071414141417a71616161414241515000000000000000000000000000000001414141414141436343534363536241400000000000000000000000000000000
-1675073435360515353634470535753700000071000000000000000000000014142606052506060616f4f5f404e4f5e400000000000000000000000000000000
+1675073435360515353634470535753700000071000000000000000000000014142406052506060616f4f5f404e4f5e400000000000000000000000000000000
 17141427140514751616167484a41515000000000000000000000000000000001414141414143437353634053435341400000000000000007100000000000000
-26b7171436353505050535054736a73700000000000000000000000000000000141606051406f4f4e4f4e4e5e5f4e4e400000000000000009000000000000000
+26b7171436353505050535054736a73700000000000000000000000000000000142406051406f4f4e4f4e4e5e5f4e4e400000000000000009000000000000000
 0614141405050575161616a715151515000000000000000000000000000000001414241414143636343405051546371400000000000000000000000000000000
-1675071706260606150505053436753700000000000000000000000000000000140616051406f5f4e4f4f4f4f4f5e5e500000072000000000000000000000000
+1675071706260606150505053436753700000000000000000000000000000000142416051406f5f4e4f4f4f4f4f5e5e500000072000000000000000000000000
 06141405050505958484849615151515000000000000000000000000000000001714141414363534350515150535343500000000000000000000000000000000
-1675141406060606060605050534751600000000000000000000000000000000141606061406e5f4f4f4f5f5e5f5f5e500000000000000000000000000000000
+1675141406060606060605050534751600000000000000000000000000000000142406061406e5f4f4f4f5f5e5f5f5e500000000000000000000000000000000
 06051515151515752414147515151515000000000000000000000000000000001414141435351515251515151505153400000000000000000000000000000000
-16a7141417161616161606151515751600000000000000000000000000000000140606141414f4e5f4f4f4f4f5f5e4e400000000000000000000000000000000
+16a7141417161616161606151515751600000000000000000000000000000000142406141414f4e5f4f4f4f4f5f5e4e400000000000000000000000000000000
 06071574848484d6141474c605150515000000000000000053000000000000001414141415151515151515151515151500000000000000000000720000000000
-1675061414140606161614251407b72600000000000000000000007200000000140614141426e5f5e5e5f4f4f4f5f5e500000000000000000000000000000000
+1675061414140606161614251407b72600000000000000000000007200000000142414141426e5f5e5e5f4f4f4f5f5e500000000000000000000000000000000
 061515a7060606151424751405171515000000000000000000000000000000001414151515151515152515151505151500000000000000000000000000000000
 167506141414140616141414140675060000000000000000000000000000000014071414140724251414141424f5e4f500000000000000000000000000000000
 061516b4060505050714752414141414000000000000000000000000005000001415151516161515151515161515151500000000000000000000000000000000
