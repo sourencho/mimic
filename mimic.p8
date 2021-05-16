@@ -807,7 +807,6 @@ end
 -->8
 -- game mechanic
 
-
 function player_big_pattern_mimic()
     for shape_key, actor_to_pat in pairs(player_big_pattern) do
         for a in all(actors) do
@@ -825,6 +824,8 @@ function player_big_pattern_mimic()
 end
 
 function update_player_big_pattern()
+    -- for all actors that move, update the players big pattern with then
+    -- if the player moved then update its big pattern with all actors
     for a in all(actors) do
         if a.dx != 0 or a.dy !=0 then
             if is_player(a) then
@@ -840,6 +841,8 @@ function update_player_big_pattern()
 end
 
 function _update_player_big_pattern(a)
+    -- for each shape and animal set the big pattern move if they are adjacent and their moves match
+    -- if their moves dont match then set the pattern move to OTHER 
     local shape = form_shape(get_body(pl), get_body(a))
     if shape != nil then
         local shape_key = 10*shape[1] + shape[2]
