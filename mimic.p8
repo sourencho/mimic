@@ -11,7 +11,7 @@ start_level = 11
 level_count = 12
 skip_levels = {7}
 
-slow_speed = 20 -- the larger the slower the npcs move
+slow_speed = 40 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
 player_spr_offset = 32
 
@@ -88,6 +88,7 @@ UP = {0, -1}
 RIGHT = {1, 0}
 DOWN = {0, 1}
 LEFT = {-1, 0}
+OTHER = {-1, -1}
 
 -- GAME
 
@@ -102,20 +103,6 @@ game = {
     level_end_tick = 0,
     pause_count = 0, -- the amount of ticks to pause the game
     restart_level = false,
-}
-
-big_patterns = {
-    -- key is (shape[1]*10 + shape[2])
-    [12] = {
-        -- assuming player always first of pair, each key is an actor
-        -- a1 = {pattern}
-        -- a2 = {pattern}
-    },
-    [21] = {
-        -- assuming player always first of pair, each key is an actor
-        -- a1 = {pattern}
-        -- a2 = {pattern}
-    }
 }
 
 -- ACTORS
@@ -624,7 +611,6 @@ function update_pattern(a, new_move)
 end
 
 function update_actor(a)
-    if (is_player(a)) player_moved_this_update = false
     -- move actor
     if a.dx != 0 or a.dy != 0 then
         local new_x = a.x + a.dx
@@ -650,7 +636,6 @@ function update_actor(a)
             a.y = new_y
 
             if is_player(a) then
-                player_moved_this_update = true
                 update_player(a)
                 play_player_sfx("move")
                 overlap_effects()
@@ -664,23 +649,26 @@ function update_actor(a)
             end
         end
 
-    -- actor animation
-	if (not is_paused()) then 
-	    a.frame += 1
-	    a.frame %= a.frames
-        a.no_trans_count = max(a.no_trans_count - 1, 0)
-	end
+        -- actor animation
+        if (not is_paused()) then 
+            a.frame += 1
+            a.frame %= a.frames
+            a.no_trans_count = max(a.no_trans_count - 1, 0)
+        end
 
-    if (a.dx != 0) a.flip_x = a.dx > 0
-
-    a.dx = 0
-    a.dy = 0
-
+        if (a.dx != 0) a.flip_x = a.dx > 0
     end
 end
 
 function update_actors()
     foreach(actors, update_actor)
+end
+
+function post_update_actors()
+    for a in all(actors) do
+        a.dx = 0
+        a.dy = 0
+    end
 end
 
 function update_particles()
@@ -741,14 +729,8 @@ player_pattern = {}
 player_pattern_i = 1
 player_pattern_size = 10 -- must be at least 1 longer than the max npc pattern length
 
-player_big_pattern = {}
-player_big_pattern_i = 1
-player_big_pattern_size = 10 -- must be at least 1 longer than the max npc pattern length
-
-
 player_move_abilities = {ground, win}
 player_push_abilities = {rock_small, tree_small, cloud_small}
-player_moved_this_update = false
 
 function init_player(l)
     local player_pos = find_sprite(l, player_spr[1][1])
@@ -791,6 +773,7 @@ function reset_player_pattern()
     for i=1,player_pattern_size do
         add(player_pattern, {0,0})
     end
+    init_player_big_pattern()
 end
 
 function is_player(a)
@@ -824,12 +807,13 @@ end
 -->8
 -- game mechanic
 
-function player_big_mimic()
-    for shape_key, pair_actors in pairs(big_patterns) do
+
+function player_big_pattern_mimic()
+    for shape_key, actor_to_pat in pairs(player_big_pattern) do
         for a in all(actors) do
             local a_shape_key = 10*a.shape[1] + a.shape[2]
             if not is_player(a) and a_shape_key == shape_key then
-                for pair_actor, big_pattern in pairs(pair_actors) do
+                for pair_actor, big_pattern in pairs(actor_to_pat) do
                     if is_mimic(big_pattern, a.pattern, player_pattern_size, player_pattern_i) then
                         transform_player(a)
                         del(actors, pair_actor)
@@ -840,36 +824,56 @@ function player_big_mimic()
     end
 end
 
-function init_big_pattern()
-    for shape, t in pairs(big_patterns) do
+function update_player_big_pattern()
+    for a in all(actors) do
+        if a.dx != 0 or a.dy !=0 then
+            if is_player(a) then
+                for _a in all(actors) do
+                    _update_player_big_pattern(_a)
+                end
+            else
+                _update_player_big_pattern(a)
+            end
+        end
+    end
+
+end
+
+function _update_player_big_pattern(a)
+    local shape = form_shape(get_body(pl), get_body(a))
+    if shape != nil then
+        local shape_key = 10*shape[1] + shape[2]
+        local pl_move = player_pattern[player_pattern_i]
+        local a_move = get_pattern_move_offset(a, -1)
+        player_big_pattern[shape_key][a][player_pattern_i] = tern(
+            pair_equal(pl_move, a_move), pl_move, OTHER)
+    end
+end
+
+function init_player_big_pattern()
+    player_big_pattern = {
+        -- key is (shape[1]*10 + shape[2])
+        [12] = {
+            -- assuming player always first of pair, each key is an actor
+            -- a1 = {pattern}
+            -- a2 = {pattern}
+        },
+        [21] = {
+            -- assuming player always first of pair, each key is an actor
+            -- a1 = {pattern}
+            -- a2 = {pattern}
+        }
+    }
+    for shape, t in pairs(player_big_pattern) do
         for a in all(actors) do
             if not is_player(a) then
                 t[a] = {}
                 for i=1,player_pattern_size do
-                    add(t[a], {-1,-1})
+                    add(t[a], OTHER)
                 end
             end
         end
     end
-end
-
-function update_big_pattern()
-    if (not player_moved_this_update) return
-    for a in all(actors) do
-        if not is_player(a) then
-            local shape = form_shape(get_body(pl), get_body(a))
-            local pl_move = player_pattern[player_pattern_i]
-            local a_move = get_pattern_move_offset(a, -1)
-            if shape != nil and pair_equal(pl_move, a_move) then
-                local shape_key = 10*shape[1] + shape[2]
-                big_patterns[shape_key][a][player_pattern_i] = pl_move
-            else
-                for shape_key, actor in pairs(big_patterns) do
-                    big_patterns[shape_key][a][player_pattern_i] = {-1, -1}
-                end
-            end
-        end
-    end   
 end
 
 function rev_pattern(pattern)
@@ -905,7 +909,7 @@ end
 
 -- give player ability of animal it mimics
 function mimic()
-    player_big_mimic()
+    player_big_pattern_mimic()
     player_mimic()
     animal_mimic()
 end
@@ -922,7 +926,6 @@ function transform_player(a)
     pl.shape = a.shape
     if (a.spr_2 != nil) pl.display_name = "chimera"
     reset_player_pattern()
-    init_big_pattern()
 end
 
 function player_mimic()
@@ -1072,7 +1075,6 @@ function init_level(_level)
     init_tiles(_level)
     init_actors(_level)
     init_player(_level)
-    init_big_pattern()
     menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
 end
 
@@ -1580,15 +1582,20 @@ function pair_str(p)
     return p[1].."_"..p[2]
 end
 
-function debug_log_big_pattern()
-    for ss, as in pairs(big_patterns) do
-        for a, pat in pairs(big_patterns[ss]) do
-            debug_log(ss.." "..a)
-            debug_log_pair_table(pat)
+function str_player_big_pattern()
+    local out = ""
+    for ss, as in pairs(player_big_pattern) do
+        for a, pat in pairs(player_big_pattern[ss]) do
+            if a.display_name == "butterfly" then
+                out ..= ss.." "..a.display_name.."\n"
+                for i = 1,#pat do
+                    out ..= pair_str(pat[i]).."\n"
+                end
+            end
         end
     end
+    return out
 end
-
 
 -->8
 -- game loop
@@ -1677,9 +1684,11 @@ function update_play()
     npc_input()
     if (is_paused()) return
     update_actors()
-    update_big_pattern()
+    -- update_big_pattern()
+    update_player_big_pattern()
     update_particles()
     mimic()
+    post_update_actors()
 end
 
 function _draw()
