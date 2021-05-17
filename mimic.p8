@@ -7,11 +7,11 @@ __lua__
 -- DATA
 
 -- SETTINGS
-start_level = 11
-level_count = 12
+start_level = 0
+level_count = 11
 skip_levels = {7}
 
-slow_speed = 40 -- the larger the slower the npcs move
+slow_speed = 20 -- the larger the slower the npcs move
 tile_slow_speed = 2 -- the larger the slower the tiles animate
 player_spr_offset = 32
 
@@ -24,7 +24,7 @@ won_text = "★ you win ★"
 
 level_size = 16
 
-debug_mode = true
+debug_mode = false
 SHOW_STATS = false
 debug = "DEBUG\n"
 
@@ -1338,6 +1338,8 @@ function draw_splash()
 
 
     map(100,58,36,10,8,4)
+    print("ALPHA", 94, 20, 1)
+    print("v0.3.1", 103, 121, 1)
 
     print(splash_inst_1, hcenter(splash_inst_1), 54, 13)
     print(splash_inst_2, hcenter(splash_inst_2), 64, 13)
