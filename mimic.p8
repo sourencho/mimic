@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 30
 __lua__
--- mimic v0.3.1
+-- mimic v0.3.2
 -- by sourencho
 
 -- DATA
@@ -1339,7 +1339,7 @@ function draw_splash()
 
     map(100,58,36,10,8,4)
     print("ALPHA", 94, 20, 1)
-    print("v0.3.1", 103, 121, 1)
+    print("v0.3.2", 103, 121, 1)
 
     print(splash_inst_1, hcenter(splash_inst_1), 54, 13)
     print(splash_inst_2, hcenter(splash_inst_2), 64, 13)
