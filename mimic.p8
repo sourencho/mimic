@@ -814,9 +814,8 @@ function player_big_pattern_mimic()
             if not is_player(a) and a_shape_key == shape_key then
                 for pair_actor, big_pattern in pairs(actor_to_pat) do
                     if is_mimic(big_pattern, a.pattern, player_pattern_size, player_pattern_i) then
-                        transform_player(a)
-                        pl.x = min(pl.x, pair_actor.x)
-                        pl.y = min(pl.y, pair_actor.y)
+                        local new_pos = {min(pl.x, pair_actor.x), min(pl.y, pair_actor.y)}
+                        transform_player(a, new_pos)
                         del(actors, pair_actor)
                     end
                 end
@@ -919,17 +918,21 @@ function mimic()
     animal_mimic()
 end
 
-function transform_player(a)
+function transform_player(a, new_pos)
+    if (new_pos != nil) then
+        pl.x = new_pos[1]
+        pl.y = new_pos[2]
+    end
     play_player_sfx("transform")
-    transform_vfx(a, 8, 20)
-    transform_vfx(pl, get_spr_col(a.spr), 20, get_spr_col(a.spr_2))
+    pl.shape = a.shape
     pl.move_abilities = copy_table(a.move_abilities)
     pl.push_abilities = copy_table(a.push_abilities)
     pl.spr = a.spr
     pl.spr_2 = a.spr_2
     pl.display_name = a.display_name
-    pl.shape = a.shape
     if (a.spr_2 != nil) pl.display_name = "chimera"
+    transform_vfx(a, 8, 20)
+    transform_vfx(pl, get_spr_col(a.spr), 20, get_spr_col(a.spr_2))
     reset_player_pattern()
 end
 
@@ -1275,6 +1278,16 @@ function transform_vfx(a, col1, dur, col2)
         tiles = get_pattern_tile_coords(a)
     end
 
+    -- add tiles for big animals
+    big_tiles = {}
+    for r=1,a.shape[2]-1 do
+        for t in all(tiles) do add(big_tiles, {t[1], t[2]+r}) end
+    end
+    for c=1,a.shape[1]-1 do
+        for t in all(tiles) do add(big_tiles, {t[1]+c, t[2]}) end
+    end
+    tiles = table_concat(tiles, big_tiles)
+
     -- gen lines
     tile_lines = {}
     for i=1,#tiles do
@@ -1300,12 +1313,11 @@ function transform_vfx(a, col1, dur, col2)
             fuzz_line_vfx(l, col1, dur, col2, 2, 1)
         end
     end
-
 end
 
 function transform_vfx_crude(a)
     if (not debug_mode) return 
-    for pos in all(get_pattern_tile_coords(a)) do
+    for pos in all(add(tiles, get_pattern_tile_coords(a))) do
         box_vfx(pos[1], pos[2], 8)
     end
 end
