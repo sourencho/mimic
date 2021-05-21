@@ -9,7 +9,7 @@ VERSION = "v0.4.0"
 -- DATA
 
 -- SETTINGS
-start_level = 0
+start_level = 11
 level_count = 12
 skip_levels = {7}
 
@@ -26,7 +26,7 @@ won_text = "★ you win ★"
 
 level_size = 16
 
-debug_mode = false
+debug_mode = true
 SHOW_STATS = false
 debug = "DEBUG\n"
 
@@ -157,6 +157,11 @@ npcs = {
         display_name = "purple",
         shape = {2, 1}
     }
+}
+
+-- PATTERNS
+
+animal_big_patterns = {
 }
 
 -->9
@@ -322,6 +327,11 @@ function tile_pair_dirs(t1, t2)
     if (t1[2] > t2[2]) return {"top", "bot"}
 end
 
+-- true if actor moved
+function moved(a)
+    return a.dx != 0 or a.dy != 0
+end
+
 -- compute magnitude of v
 function v_mag(v)
   return sqrt((v[1] * v[1]) + (v[2] * v[2]))
@@ -357,7 +367,7 @@ end
 -->8
 -- game logic
 
-function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, display_name, shape)
+function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, display_name, shape, is_player)
     local a={}
     a.x = x
     a.y = y
@@ -382,6 +392,8 @@ function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, displa
 
     -- display
     a.display_name = display_name
+
+    a.is_player = is_player
 
     add(actors, a)
     return a
@@ -588,7 +600,7 @@ function npc_input()
 end
 
 function update_npc(a)
-    if a.dx != 0 or a.dy != 0 then
+    if moved(a) then
         a.t += 1
     end
 end
@@ -614,7 +626,7 @@ end
 
 function update_actor(a)
     -- move actor
-    if a.dx != 0 or a.dy != 0 then
+    if moved(a) then
         local new_x = a.x + a.dx
         local new_y = a.y + a.dy
 
@@ -702,7 +714,8 @@ function init_actors(l)
                 n.move_abilities,
                 n.push_abilities,
                 n.display_name,
-                n.shape)
+                n.shape,
+                false)
         end
     end
 end
@@ -744,7 +757,8 @@ function init_player(l)
         player_move_abilities,
         player_push_abilities,
         "you",
-        {1,1})
+        {1,1},
+        true)
     reset_player_pattern()
 end
 
@@ -779,7 +793,7 @@ function reset_player_pattern()
 end
 
 function is_player(a)
-    return (#a.pattern == 0)
+    return a.is_player
 end
 
 function update_player(p)
@@ -830,7 +844,7 @@ function update_player_big_pattern()
     -- for all actors that move, update the players big pattern with then
     -- if the player moved then update its big pattern with all actors
     for a in all(actors) do
-        if a.dx != 0 or a.dy !=0 then
+        if moved(a) then
             if is_player(a) then
                 for _a in all(actors) do
                     _update_player_big_pattern(_a)
@@ -882,6 +896,63 @@ function init_player_big_pattern()
     end
 end
 
+function init_animal_big_patterns()
+    animal_big_patterns = {}
+    for i=1,#actors-1 do
+        for j=i+1,#actors do
+            local a1, a2 = actors[i], actors[j]
+            if not is_player(a1) and not is_player(a2) then 
+                animal_big_patterns[{actors[i], actors[j]}] =
+                {
+                    [12] = {},
+                    [21] = {},
+                }
+            end
+        end
+    end
+end
+
+function update_animal_big_patterns()
+    for animals,shape_keys in pairs(animal_big_patterns) do
+        local a1, a2 = animals[1], animals[2]
+        if moved(a1) or moved(a2) then
+            for shape_key, pat in pairs(shape_keys) do
+                local pair_shape = form_shape(get_body(a1), get_body(a2))
+                local update_index = (a1.t % #a1.pattern) + 1
+                if pair_shape != nil and shape_key == 10*pair_shape[1] + pair_shape[2] and
+                   pair_equal({a1.dx, a1.dy}, {a2.dx, a2.dy}) then
+                    add(animal_big_patterns[animals][shape_key], {a1.dx, a1.dy})
+                else
+                    animal_big_patterns[animals][shape_key] = {}
+                end
+            end
+        end
+    end
+end
+
+function animal_big_mimic()
+    for a in all(actors) do
+        local shape_key = 10*a.shape[1] + a.shape[2]
+        if (is_player(a)) goto cont
+        if shape_key == 12 or shape_key == 21 then
+            for animals,shape_keys in pairs(animal_big_patterns) do
+                local a1, a2 = animals[1], animals[2]
+                for pair_shape_key, pat in pairs(shape_keys) do
+                    if shape_key == pair_shape_key then
+                        if #a.pattern <= #pat and is_mimic(pat, a.pattern, #a.pattern, 0) then
+                            local new_pos = {min(a1.x, a2.x), min(a1.y, a2.y)}
+                            transform_animal(a1, a, new_pos)
+                            del(actors, a2)
+                        end
+                    end
+                end
+
+            end
+        end
+        ::cont::
+    end
+end
+
 function rev_pattern(pattern)
     reverse = {}
     for i = 1,#pattern do
@@ -917,25 +988,30 @@ end
 function mimic()
     player_big_pattern_mimic()
     player_mimic()
+    animal_big_mimic()
     animal_mimic()
 end
 
 function transform_player(a, new_pos)
+    transform_animal(pl, a, new_pos)
+    reset_player_pattern()
+end
+
+function transform_animal(a, other, new_pos)
     if (new_pos != nil) then
-        pl.x = new_pos[1]
-        pl.y = new_pos[2]
+        a.x = new_pos[1]
+        a.y = new_pos[2]
     end
     play_player_sfx("transform")
-    pl.shape = a.shape
-    pl.move_abilities = copy_table(a.move_abilities)
-    pl.push_abilities = copy_table(a.push_abilities)
-    pl.spr = a.spr
-    pl.spr_2 = a.spr_2
-    pl.display_name = a.display_name
-    if (a.spr_2 != nil) pl.display_name = "chimera"
-    transform_vfx(a, 8, 20)
-    transform_vfx(pl, get_spr_col(a.spr), 20, get_spr_col(a.spr_2))
-    reset_player_pattern()
+    a.shape = other.shape
+    a.move_abilities = copy_table(other.move_abilities)
+    a.push_abilities = copy_table(other.push_abilities)
+    a.spr = other.spr
+    a.spr_2 = other.spr_2
+    a.display_name = other.display_name
+    if (other.spr_2 != nil) a.display_name = "chimera"
+    transform_vfx(other, 8, 20)
+    transform_vfx(a, get_spr_col(other.spr), 20, get_spr_col(other.spr_2))
 end
 
 function player_mimic()
@@ -1085,6 +1161,7 @@ function init_level(_level)
     init_tiles(_level)
     init_actors(_level)
     init_player(_level)
+    init_animal_big_patterns()
     menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
 end
 
@@ -1705,8 +1782,8 @@ function update_play()
     npc_input()
     if (is_paused()) return
     update_actors()
-    -- update_big_pattern()
     update_player_big_pattern()
+    update_animal_big_patterns()
     update_particles()
     mimic()
     post_update_actors()
@@ -1803,25 +1880,25 @@ __gfx__
 05151505051505750606060615151515000000000000000000000000000000002714141414142414141404141424141400000000000000000000000000000000
 060626161616060505343737373537350000000000000000000000000000000006060606060606060606e5f5f4f4f5e500000000000000000000000000000000
 05052414051515751614171415151515000000000000000000000000000000001414140714141414243436342714141400000000000000000000000000000000
-167784848784848484978484c435353500000000007000000000000000000014061606161606061606f4e5f4f4e4f4e400000000000000000000000000000000
+167784848784848484978484c435353500000000007000000000000000000014f4f5f4f4f4e4061606f4e5f4f4e4f4e400000000000000000000000000000000
 15151414142514751614260714151515000000000072000000000000000000001417140714141414344644373414141400000000000000000000000000000000
-167514173535053534350505768494370000000000000000000000000000001406161616f4e5e4f4e5f4e4e4f4f4f4f500000000000000000000000000000000
+1675141735350535343505057684943700000000000000000000000000000014f4f416f5f4e4e4f4e5f4e4e4f4f4f4f500000000000000000000000000000000
 05071414141417a71616161414241515000000000000000000000000000000001414141414141436343534363536241400000000000000000000000000000000
-167507343536051535363447053575370000007100000000000000000000001406160616e5e4f4f4e5f4f5f404e4f5e400000000000000000000000000000000
+1675073435360515353634470535753700000071000000000000000000000014e4e5f5e5f5e4f4f4e5f4f5f404e4f5e400000000000000000000000000000000
 17141427140514751616167484a41515000000000000000000000000000000001414141414143437353634053435341400000000000000007100000000000000
-26b7171436353505050535054736a7370000000000000000000000000000000006160616f4e4f4f4e4f4e4e5e5f4e4e400000000000000009000000000000000
+26b7171436353505050535054736a73700000000000000000000000000000000f4f5e5e5e5e5f4f4e4f4e4e5e5f4e4e400000000000000009000000000000000
 0614141405050575161616a715151515000000000000000000005100000000001414241414143636343405051546371400000000000000000000000000000000
-167507170626060615050505343675370000000000000000000000000000000006161616e5f4f5f4e4f4f4f4f4f5e5e500000000000000000000000000000000
+1675071706260606150505053436753700000000000000000000000000000000e406161524f4f5f4e4f4f4f4f4f5e5e500000000000000000000000000000000
 06141405050505958484849615151515000000000000000000000000000000001714141414363534350515150535343500000000000000000000000000000000
-167514140606060606060505053475160000000000000000000000000000000006160616f4e4e5f4f4f4f5f5e5f5f5e500000000000000000000000000000000
+1675141406060606060605050534751600000000000000000000000000000000e406061525e4e5f4f4f4f5f5e5f5f5e500000000000000000000000000000000
 06051515151515752414147515151515000000000000000000000000000000001414141435351515251515151505153400000000000000000000000000000000
-16a714141716161616160615151575160000000000000000000000000000000006160616e4f4f4e5f4f4f410f5f5e4e400000000000000000000000000000000
+16a7141417161616161606151515751600000000000000000000000000000000e406061524f4f4e5f4f4f4e4f5f5e4e400000000000000000000000000000000
 06071574848484d6141474c605150515000000000000000053000000000000001414141415151515151515151515151500000000000000000000720000000000
-1675061414140606161614251407b7260000000000000000000000720000000006161616e5e4e5f5e5e5f4f4f4f5f5e500005100000000000000000000000000
+1675061414140606161614251407b72600000000000000000000007200000000e40616152424e5f5e5e5f4f4f4f5f5e500005172000000000000000000000000
 061515a7060606151424751405171515000000000000000000000000000000001414151515151515152515151505151500000000000000000000000000000000
-167506141414140616141414140675060000000000000000000000000000000006161616140724251414141424f5e4f500000000000000000000000000000000
+1675061414141406161414141406750600000000000000000000000000000000f4061616140724251414141424f5e4f500000000000000000000000000000000
 061516b4060505050714752414141414000000000000000000000000005000001415151516161515151515161515151500000000000000000000000000000000
-06a70616171414240614141406167516000000000000000000000000000000000616071414171407241424141414f5f400000000000000000000000000000000
+06a70616171414240614141406167516000000000000000000000000000000000616061414171407241424141414f5f400000000000000000000000000000000
 06161616060505051515751514241406000000000000000000000000000000001524261414141616161616161616161600000000000000000000000000000000
 2675061617141424242425748484d626000000000000000000000000000000000607141414140714141414141414e4e400000000000000000000000000000000
 06161616060505051515751516060606000000000000000000000000000000000505160624140716161616162416161600000000000000000000000000000000
