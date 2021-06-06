@@ -36,7 +36,7 @@ sheep_spr = {{39, nil}, {nil, nil}}
 butter_spr = {{21, nil}, {nil, nil}}
 bird_spr = {{23, nil}, {nil, nil}}
 frog_spr = {{53, nil}, {nil, nil}}
-llama_spr = {{9, 10}, {nil, nil}}
+llama_spr = {{9, 11}, {nil, nil}}
 
 -- MAP AND TILES
 -- tile flag values
@@ -940,9 +940,7 @@ function animal_big_mimic()
                 for pair_shape_key, pat in pairs(shape_keys) do
                     if shape_key == pair_shape_key then
                         if #a.pattern <= #pat and is_mimic(pat, a.pattern, #a.pattern, 0) then
-                            local new_pos = {min(a1.x, a2.x), min(a1.y, a2.y)}
-                            transform_animal(a1, a, new_pos)
-                            del(actors, a2)
+                            merge_big_animal(a, a1, a2)
                         end
                     end
                 end
@@ -1014,6 +1012,45 @@ function transform_animal(a, other, new_pos)
     transform_vfx(a, get_spr_col(other.spr), 20, get_spr_col(other.spr_2))
 end
 
+-- currently only works for shape {2,1}
+function merge_big_animal(a, o1, o2)
+    local a_o1_abilities = table_concat(a.move_abilities, o1.move_abilities)
+    local a_o2_abilities = table_concat(a.move_abilities, o2.move_abilities)
+    local a_o1_02_abilities = table_concat(a_o1_abilities, o2.move_abilities)
+    local a_o1_o2_sprites = {{o1.spr, a.spr}, {o2.spr, a.spr}}
+
+    -- o1, o2 -> [o1 a a o2]
+    local tmp = o1
+    if (o1.x > o2.x or o1.y > o2.y) then 
+        o1 = o2
+        o2 = tmp
+    end
+    o1.x, o1.y = min(o1.x, o2.x), min(o1.y, o2.y)
+    o1.move_abilities = a_o1_02_abilities
+    o1.shape = a.shape
+    o1.spr[1][2] = a.spr[1][2]
+    o1.spr_2 = {copy_table(a.spr[1]), copy_table(a.spr[2])}
+    o1.spr_2[1][2] = o2.spr[1][1]
+    del(actors, o2)
+
+    -- o1 -> [o1, a], o2 -> [a, o2]
+    --todo
+
+
+    -- fx
+    play_player_sfx("transform")
+    transform_vfx(o1, get_spr_col(a.spr), 20)
+    -- transform_vfx(a, get_spr_col(o1.spr), 20, get_spr_col(o1.spr_2))
+end
+
+function merge_animals(a, b)
+    local merged_move_abilities = table_concat(a.move_abilities, b.move_abilities)
+    a.move_abilities = copy_table(merged_move_abilities)
+    b.move_abilities = copy_table(merged_move_abilities)
+    a.spr_2 = b.spr
+    b.spr_2 = a.spr
+end
+
 function player_mimic()
     for a in all(actors) do
         if not is_player(a) and
@@ -1032,7 +1069,8 @@ function animal_mimic()
                not is_player(a) and not is_player(b) and 
                is_mimic(a.pattern, b.pattern, #a.pattern, 0) and
                a.no_trans_count <= 0 and b.no_trans_count <= 0 and
-               a.shape[1] == b.shape[1] and a.shape[2] == b.shape[2]) then
+               a.shape[1] == b.shape[1] and a.shape[2] == b.shape[2] and
+               pair_equal(a.shape, {1,1}) and pair_equal(b.shape, {1,1})) then
                 merge_animals(a, b)
                 play_player_sfx("transform")
                 transform_vfx(a, get_spr_col(b.spr), 20, get_spr_col(a.spr_2))
@@ -1072,14 +1110,6 @@ function contains_pattern(in_pattern, fit_pattern, in_pattern_size, in_pattern_s
     else
         return false
     end
-end
-
-function merge_animals(a, b)
-    local merged_move_abilities = table_concat(a.move_abilities, b.move_abilities)
-    a.move_abilities = copy_table(merged_move_abilities)
-    b.move_abilities = copy_table(merged_move_abilities)
-    a.spr_2 = b.spr
-    b.spr_2 = a.spr
 end
 
 -- get the postitions of the tiles the actor's pattern covers
@@ -1540,22 +1570,24 @@ function draw_actor(a)
             spr_n = a.spr[r][c]
 
             -- chimera
+            local ax, ay = (a.x + (c-1))*8, (a.y + (r-1))*8
             if a.spr_2 != nil then
                 spr_n_2 = a.spr_2[r][c]
+                -- sspr formula from https://pico-8.fandom.com/wiki/Sspr
                 local a_sx, a_sy = ((spr_n + a.frame) % 16) * 8, ((spr_n + a.frame) \ 16) * 8
                 local b_sx, b_sy = ((spr_n_2 + a.frame) % 16) * 8, ((spr_n_2 + a.frame) \ 16) * 8
                 if (a.flip_x) then 
-                    sspr(a_sx, a_sy, 4, 8 , a.x*8 + 4, a.y*8, 4, 8, a.flip_x)
-                    sspr(b_sx + 4, b_sy, 4, 8 , a.x*8, a.y*8, 4, 8, a.flip_x)
+                    sspr(a_sx, a_sy, 4, 8 , ax + 4, ay, 4, 8, a.flip_x)
+                    sspr(b_sx + 4, b_sy, 4, 8 , ax, ay, 4, 8, a.flip_x)
                 else
-                    sspr(a_sx, a_sy, 4, 8 , a.x*8, a.y*8)
-                    sspr(b_sx + 4, b_sy, 4, 8 , a.x*8 + 4, a.y*8)
+                    sspr(a_sx, a_sy, 4, 8 , ax, ay)
+                    sspr(b_sx + 4, b_sy, 4, 8 , ax + 4, ay)
                 end
             else -- normal
                 spr(
-                    spr_n + (a.frame * a.shape[1]),
-                    (a.x + (c-1))*8,
-                    (a.y + (r-1))*8,
+                    spr_n + a.frame,
+                    ax,
+                    ay,
                     1, 1, tern(a.shape[1] + a.shape[2] < 3, a.flip_x, false))
             end
         end
@@ -1677,7 +1709,7 @@ function debug_log_pair_table(xs)
 end
 
 function pair_str(p)
-    return p[1].."_"..p[2]
+    return (p[1] or "nil").."_"..(p[2] or "nil")
 end
 
 function str_player_big_pattern()
@@ -1813,14 +1845,14 @@ function draw_play()
 end
 
 __gfx__
-000000000000000000000000000000000000000000000000000000000000000000000000000ddd000ddd00000000ddd000ddd000000000002000022220000000
-0000000008080000000000000000000000000000008888000000000000000000000000000000dd0000dd00000000dd0000dd0000000000222200220020000000
-0070070088888000000000000000000000000000088888800088880000999090009909000000dddddddd00000000dddddddd0000000002200220022020000000
-000770008888800000000000000000000000000008f8f8800888888009999900099990000dddddddddddddd00dddddddddddddd0000000200020002000000000
-00077000088800000000000000000000000000000888888008f8f88009999900099990000dddddddddddddd00dddddddddddddd0000002202220022200000000
-0070070000800000000000000000000000000000088888800888888000999090009909000000dddddddd00000000dddddddd0000000000002000220200000000
-0000000000000000000000000000000000000000008888000088880000000000000000000000dd0000dd00000000dd0000dd0000000000002200200000000000
-000000000000000000000000000000000000000000000000000000000000000000000000000ddd000ddd00000000ddd000ddd000000000000022000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000ddd00000ddd00ddd00000ddd0000000000002000022220000000
+0000000008080000000000000000000000000000008888000000000000000000000000000000dd0000000dd00dd0000000dd0000000000222200220020000000
+0070070088888000000000000000000000000000088888800088880000999090009909000ddddddd0dddddddddddddd0ddddddd0000002200220022020000000
+000770008888800000000000000000000000000008f8f88008888880099999000999900000dddddd00dddddddddddd00dddddd00000000200020002000000000
+00077000088800000000000000000000000000000888888008f8f880099999000999900000dddddd00dddddddddddd00dddddd00000002202220022200000000
+0070070000800000000000000000000000000000088888800888888000999090009909000ddddddd0dddddddddddddd0ddddddd0000000002000220200000000
+0000000000000000000000000000000000000000008888000088880000000000000000000000dd0000000dd00dd0000000dd0000000000002200200000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000ddd00000ddd00ddd00000ddd0000000000000022000000000000
 000000000000000000000000000000000000000000e00e000e0000e0000000000000000000000000000000000000000000000000000000000288200000000000
 00000000000000000000000000000000000000000eeeeee0eee00eee00000000c000000c00000000000000000000000000000000000000002888820000000000
 00000000000000000000000000000000000000000eeeeee0eee00eee000cc000cc0cc0cc00000000000000000000000000000000000000002888882000000000
@@ -2072,7 +2104,7 @@ __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
 __gff__
-0000000000000000000306020204000000000000000000000002020202000000000000000000000000020201000000000000000000000000000200000000000008101060606060020202020202028080040424404040400202020202000080800101214040404002020202020202000810101040404040020202020224212108
+0000000000000000000302060204000000000000000000000002020206000000000000000000000000020201000000000000000000000000000200000000000008101060606060020202020202028080040424404040400202020202000080800101214040404002020202020202000810101040404040020202020224212108
 0808080808080808080808080808080802020202020000000800000000000000020202020000000000000000000000000202020200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 6060606060606060606060606060606000000000000000000000000000000000414171416161414141724141704141410000000000000000000000000000000060616162606060606060606060616060000000000000000000000000000000006057616061616060606061616060606100000000000000000000000000000000
