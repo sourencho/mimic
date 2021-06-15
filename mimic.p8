@@ -1,5 +1,5 @@
 pico-8 cartridge // http://www.pico-8.com
-version 30
+version 32
 __lua__
 -- mimic v0.4.0
 -- by sourencho
@@ -162,6 +162,10 @@ npcs = {
 -- PATTERNS
 
 animal_big_patterns = {
+    -- {a, b} = {
+    --      [12] = { {dx1, dy1}, {dx2, dy2} },
+    --      [21] = { ... },
+    -- } 
 }
 
 -->9
@@ -343,6 +347,11 @@ function v_normalize(v)
   return {v[1]/len, v[2]/len}
 end
 
+-- Add v1 to v2
+function v_addv( v1, v2 )
+  return {v1[1] + v2[1], v1[2] + v2[2]}
+end
+
 function get_tile_class(t)
     return fget(t.spr)
 end
@@ -367,14 +376,14 @@ end
 -->8
 -- game logic
 
-function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, display_name, shape, is_player)
+function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, display_name, shape, is_player, spr_2)
     local a={}
     a.x = x
     a.y = y
     a.dx = 0
     a.dy = 0
-    a.spr = spr_n
-    a.spr_2 = nil
+    a.spr = copy_table(spr_n)
+    a.spr_2 = spr_2
     a.shape = shape
     a.move_abilities = copy_table(move_abilities)
     a.push_abilities = copy_table(push_abilities)
@@ -395,7 +404,6 @@ function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, displa
 
     a.is_player = is_player
 
-    add(actors, a)
     return a
 end
 
@@ -706,7 +714,7 @@ function init_actors(l)
     for n in all(npcs) do
         local n_pos = find_sprite(l, n.spr_n[1][1])
         if n_pos != nil then
-            make_actor(
+            local a = make_actor(
                 n_pos[1],
                 n_pos[2],
                 n.spr_n,
@@ -716,6 +724,7 @@ function init_actors(l)
                 n.display_name,
                 n.shape,
                 false)
+            add(actors, a)
         end
     end
 end
@@ -759,6 +768,7 @@ function init_player(l)
         "you",
         {1,1},
         true)
+    add(actors, pl)
     reset_player_pattern()
 end
 
@@ -931,6 +941,8 @@ function update_animal_big_patterns()
 end
 
 function animal_big_mimic()
+    local actors_to_add = {}
+    local actors_to_del = {}
     for a in all(actors) do
         local shape_key = 10*a.shape[1] + a.shape[2]
         if (is_player(a)) goto cont
@@ -940,7 +952,10 @@ function animal_big_mimic()
                 for pair_shape_key, pat in pairs(shape_keys) do
                     if shape_key == pair_shape_key then
                         if #a.pattern <= #pat and is_mimic(pat, a.pattern, #a.pattern, 0) then
-                            merge_big_animal(a, a1, a2)
+                            to_add, to_del = merge_big_animal(a, a1, a2)
+                            actors_to_add = table_concat(actors_to_add, to_add)
+                            actors_to_del = table_concat(actors_to_del, to_del)
+                            goto cont
                         end
                     end
                 end
@@ -949,6 +964,15 @@ function animal_big_mimic()
         end
         ::cont::
     end
+
+    for x in all(actors_to_del) do
+        del(actors, x)
+        for animals,shape_keys in pairs(animal_big_patterns) do
+            if (contains(animals, x)) animal_big_patterns[animals] = nil
+        end
+    end
+
+    foreach(actors_to_add, function(x) add(actors, x) end) 
 end
 
 function rev_pattern(pattern)
@@ -1012,37 +1036,69 @@ function transform_animal(a, other, new_pos)
     transform_vfx(a, get_spr_col(other.spr), 20, get_spr_col(other.spr_2))
 end
 
--- currently only works for shape {2,1}
+-- currently hardcoded to only work for shape {2,1}
 function merge_big_animal(a, o1, o2)
-    local a_o1_abilities = table_concat(a.move_abilities, o1.move_abilities)
-    local a_o2_abilities = table_concat(a.move_abilities, o2.move_abilities)
-    local a_o1_02_abilities = table_concat(a_o1_abilities, o2.move_abilities)
-    local a_o1_o2_sprites = {{o1.spr, a.spr}, {o2.spr, a.spr}}
 
-    -- o1, o2 -> [o1 a a o2]
+    -- make sure o1 is pointing to the top_left one
     local tmp = o1
     if (o1.x > o2.x or o1.y > o2.y) then 
         o1 = o2
         o2 = tmp
     end
-    o1.x, o1.y = min(o1.x, o2.x), min(o1.y, o2.y)
-    o1.move_abilities = a_o1_02_abilities
-    o1.shape = a.shape
-    o1.spr[1][2] = a.spr[1][2]
-    o1.spr_2 = {copy_table(a.spr[1]), copy_table(a.spr[2])}
-    -- debug_log_pair_table(o1.spr_2)
-    o1.spr_2[1][2] = o2.spr[1][1]
-    -- o1.spr_2 = a.spr
 
-    -- o1 -> [o1, a], o2 -> [a, o2]
-    --todo
+    -- o1, o2 -> [o1 a a o2] (using the actor a)
+    local new_big = make_actor(
+        min(o1.x, o2.x),
+        min(o1.y, o2.y),
+        {{o1.spr[1][1], a.spr[1][2]}, {}},
+        o1.pattern,
+        table_concat(a.move_abilities, table_concat(o1.move_abilities, o2.move_abilities)),
+        table_concat(a.push_abilities, table_concat(o1.push_abilities, o2.push_abilities)),
+        "vishab",
+        a.shape,
+        false,
+        {{a.spr[1][1], o2.spr[1][1]}, {nil, nil}}
+    )
 
-    del(actors, o2)
 
+    -- o1 -> [o1, a]
+    local new_o1 = make_actor(
+        a.x,
+        a.y,
+        {{o1.spr[1][1], nil}, {}},
+        a.pattern,
+        table_concat(a.move_abilities, o1.move_abilities),
+        table_concat(a.push_abilities, o1.push_abilities),
+        "chimera",
+        {1,1},
+        false,
+        {{a.spr[1][2], nil}, {}}
+    )
+
+    -- o2 -> [a, o2]
+    local new_o2 = make_actor(
+        a.x+1,
+        a.y,
+        {{o2.spr[1][1], nil}, {}},
+        a.pattern,
+        table_concat(a.move_abilities, o2.move_abilities),
+        table_concat(a.push_abilities, o2.push_abilities),
+        "chimera",
+        {1,1},
+        false,
+        {{a.spr[1][2], nil}, {}}
+    )
+
+    -- TODO: mark the actors we are going to delete as "used"
+    --       so that they dont participate in other merges
+    
     -- fx
     play_player_sfx("transform")
     transform_vfx(o1, get_spr_col(a.spr), 20)
-    -- transform_vfx(a, get_spr_col(o1.spr), 20, get_spr_col(o1.spr_2))
+    transform_vfx(o2, get_spr_col(a.spr), 20)
+    transform_vfx(a, get_spr_col(o1.spr), 20, get_spr_col(o2.spr))
+
+    return {new_big, new_o1, new_o2}, {o1, o2, a}
 end
 
 function merge_animals(a, b)
@@ -1075,6 +1131,7 @@ function animal_mimic()
                pair_equal(a.shape, {1,1}) and pair_equal(b.shape, {1,1})) then
                 merge_animals(a, b)
                 play_player_sfx("transform")
+                debug_log("animal_mimic")
                 transform_vfx(a, get_spr_col(b.spr), 20, get_spr_col(a.spr_2))
                 transform_vfx(b, get_spr_col(a.spr), 20, get_spr_col(b.spr_2))
             end
@@ -1850,8 +1907,8 @@ __gfx__
 0000000000000000000000000000000000000000000000000000000000000000000000000000ddd00000ddd00ddd00000ddd0000000000002000022220000000
 0000000008080000000000000000000000000000008888000000000000000000000000000000dd0000000dd000dd000000dd0ddd000000222200220020000000
 0070070088888000000000000000000000000000088888800088880000999090009909000ddddddd0ddddddddddddddddddd0d0d000002200220022020000000
-000770008888800000000000000000000000000008f8f880088888800999990009999000dddddddddddddddddddddddddddd000d000000200020002000000000
-00077000088800000000000000000000000000000888888008f8f8800999990009999000dddddddddddddddddddd000ddddddddd000002202220022200000000
+000770008888800000000000000000000000000008f8f8800888888009999900099990000ddddddd0ddddddddddddddddddd000d000000200020002000000000
+00077000088800000000000000000000000000000888888008f8f88009999900099990000ddddddd0ddddddddddd000ddddddddd000002202220022200000000
 0070070000800000000000000000000000000000088888800888888000999090009909000ddddddd0ddddddddddd0d0ddddddddd000000002000220200000000
 0000000000000000000000000000000000000000008888000088880000000000000000000000dd0000000dd000dd0ddd00dd0000000000002200200000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000ddd00000ddd00ddd00000ddd0000000000000022000000000000
@@ -1924,11 +1981,11 @@ __gfx__
 0614141405050575161616a715151515000000000000000000005100000000001414241414143636343405051546371400000000000000000000000000000000
 1675071706260606150505053436753700000000000000000000000000000000e406161524f4f5f4e4f4f4f4f4f5e5e500000000000000000000000000000000
 06141405050505958484849615151515000000000000000000000000000000001714141414363534350515150535343500000000000000000000000000000000
-1675141406060606060605050534751600000000000000000000000000000000e406061525e4e5f4f4f4f5f5e5f5f5e500000000000000000000000000000000
+1675141406060606060605050534751600000000000000000000000000000000e406061514e4e5f4f4f4f5f5e5f5f5e500000000000000000000000000000000
 06051515151515752414147515151515000000000000000000000000000000001414141435351515251515151505153400000000000000000000000000000000
 16a7141417161616161606151515751600000000000000000000000000000000e406061524f4f4e5f4f4f4e4f5f5e4e400000000000000000000000000000000
 06071574848484d6141474c605150515000000000000000053000000000000001414141415151515151515151515151500000000000000000000720000000000
-1675061414140606161614251407b72600000000000000000000007200000000e40616152424e5f5e5e5f4f4f4f5f5e500005172000000000000000000000000
+1675061414140606161614251407b72600000000000000000000007200000000e40616151424e5f5e5e5f4f4f4f5f5e500005172000000000000000000000000
 061515a7060606151424751405171515000000000000000000000000000000001414151515151515152515151505151500000000000000000000000000000000
 1675061414141406161414141406750600000000000000000000000000000000f4061616140724251414141424f5e4f500000000000000000000000000000000
 061516b4060505050714752414141414000000000000000000000000005000001415151516161515151515161515151500000000000000000000000000000000
