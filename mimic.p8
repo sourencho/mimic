@@ -27,6 +27,7 @@ won_text = "★ you win ★"
 level_size = 16
 
 debug_mode = true
+DEBUG_OUT_FILE = nil
 SHOW_STATS = true
 debug = "DEBUG\n"
 
@@ -154,7 +155,7 @@ npcs = {
         pattern = {DOWN, DOWN, DOWN, UP, UP, UP},
         move_abilities = {teru},
         push_abilities = {tree_small, rock_small},
-        display_name = "パープル",
+        display_name = "ネ⬇️➡️ネ⬇️もネ⬇️❎ル",
         shape = {2, 1}
     }
 }
@@ -168,8 +169,7 @@ animal_big_patterns = {
     -- } 
 }
 
--->9
--- sfx
+-- == SFX ==
 
 player_sfx={}
 player_sfx.move={}
@@ -194,8 +194,7 @@ function play_player_sfx(action)
     sfx(player_sfx[action])
 end
 
--->8
--- particles
+-- == PARTICLES == 
 
 -- particles
 particles = {
@@ -210,8 +209,7 @@ particles = {
     --}
 }
 
--->8
--- util
+-- == UTIL ==
 
 -- ternary operator
 function tern(cond, T, F)
@@ -242,12 +240,31 @@ function table_concat(t1, t2)
     return tc
 end
 
+function flat_table_equal(t1, t2) 
+    if (#t1 != #t2) return false
+    for i=1,#t1 do
+        if (t1[i] != t2[i]) return false
+    end
+    return true
+end
+
 function copy_table(table)
     copy = {}
     for i=1,#table do
       copy[i] = table[i]
     end
     return copy
+end
+
+-- Enumerate and potentially filter a table
+function enum(t, filter)
+    local i = 0
+    filter = filter or function (v) return v end
+    return function()
+        local o = t[i]
+        i += 1
+        if (o) return i, filter(o)
+    end
 end
 
 -- e.g. given UP will return LEFT and RIGHT
@@ -260,7 +277,11 @@ function get_perp_moves(move)
 end
 
 function pair_equal(a, b)
-    if (a[1] == b[1] and a[2] == b[2]) then
+    if (a == nil and b == nil) then
+        return true
+    elseif a == nil or b == nil then
+        return false
+    elseif (a[1] == b[1] and a[2] == b[2]) then
         return true
     else
         return false
@@ -362,8 +383,14 @@ function get_dynamic_or_static_tile_class(x, y)
     return get_tile_class(level_static_tiles[x][y])
 end
 
--->8
--- text
+-- checks if two actors are made of the same set of animals
+function is_comp_equal(a, b)
+    -- sort(a.comp, function (x, y) return x > y end)
+    -- sort(b.comp, function (x, y) return x > y end)
+    return flat_table_equal(a.comp, b.comp)
+end
+
+-- == TEXT == 
 
 function hcenter(s)
   return 64-#s*2
@@ -373,10 +400,9 @@ function vcenter(s)
   return 61
 end
 
--->8
--- game logic
+-- == GAME LOGIC == 
 
-function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, display_name, shape, is_player, spr_2)
+function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, display_name, shape, is_player, spr_2, comp)
     local a={}
     a.x = x
     a.y = y
@@ -387,6 +413,7 @@ function make_actor(x, y, spr_n, pattern, move_abilities, push_abilities, displa
     a.shape = shape
     a.move_abilities = copy_table(move_abilities)
     a.push_abilities = copy_table(push_abilities)
+    a.comp = copy_table(comp) -- which sprites is this actor made of
 
     -- pattern
     a.pattern = copy_table(pattern)
@@ -723,7 +750,10 @@ function init_actors(l)
                 n.push_abilities,
                 n.display_name,
                 n.shape,
-                false)
+                false,
+                nil,
+                {n.spr_n[1][1]}
+            )
             add(actors, a)
         end
     end
@@ -744,14 +774,13 @@ function no_npc()
     return #actors == 1
 end
 
--->8
--- player
+-- == PLAYER == 
 
 player_spr = {{5, nil}, {nil, nil}}
 
-player_pattern = {}
-player_pattern_i = 1
-player_pattern_size = 10 -- must be at least 1 longer than the max npc pattern length
+-- player_pattern = {}
+-- player_pattern_i = 1
+PLAYER_PATTERN_SIZE = 10 -- must be at least 1 longer than the max npc pattern length
 
 player_move_abilities = {ground, win}
 player_push_abilities = {rock_small, tree_small, cloud_small}
@@ -767,7 +796,10 @@ function init_player(l)
         player_push_abilities,
         "you",
         {1,1},
-        true)
+        true,
+        nil,
+        {})
+    pl.t = 1;
     add(actors, pl)
     reset_player_pattern()
 end
@@ -795,9 +827,9 @@ function player_input()
 end
 
 function reset_player_pattern()
-    player_pattern={}
-    for i=1,player_pattern_size do
-        add(player_pattern, {0,0})
+    pl.pattern={}
+    for i=1,PLAYER_PATTERN_SIZE do
+        add(pl.pattern, {0,0})
     end
     init_player_big_pattern()
 end
@@ -819,19 +851,19 @@ function update_player(p)
         return
     end
 
-    p.t += 1
+    -- p.t += 1
 
-    -- save player pattern
-    player_pattern_i += 1
-    if player_pattern_i > player_pattern_size then
-        player_pattern_i = 1
-    end
-    player_pattern[player_pattern_i][1] = p.dx;
-    player_pattern[player_pattern_i][2] = p.dy;
+    -- save player pattern    -- if player_pattern_i > player_pattern_size then
+    --     player_pattern_i = 1
+    -- end
+    -- player_pattern_i += 1
+
+    p.t = (p.t % #p.pattern) + 1;
+    p.pattern[p.t][1] = p.dx;
+    p.pattern[p.t][2] = p.dy;
 end
 
--->8
--- game mechanic
+-- == MECHANIC ==
 
 function player_big_pattern_mimic()
     for shape_key, actor_to_pat in pairs(player_big_pattern) do
@@ -839,7 +871,7 @@ function player_big_pattern_mimic()
             local a_shape_key = 10*a.shape[1] + a.shape[2]
             if not is_player(a) and a_shape_key == shape_key then
                 for pair_actor, big_pattern in pairs(actor_to_pat) do
-                    if is_mimic(big_pattern, a.pattern, player_pattern_size, player_pattern_i) then
+                    if is_mimic(big_pattern, a.pattern, #pl.pattern, pl.t) then
                         local new_pos = {min(pl.x, pair_actor.x), min(pl.y, pair_actor.y)}
                         transform_player(a, new_pos)
                         del(actors, pair_actor)
@@ -873,9 +905,9 @@ function _update_player_big_pattern(a)
     local shape = form_shape(get_body(pl), get_body(a))
     if shape != nil then
         local shape_key = 10*shape[1] + shape[2]
-        local pl_move = player_pattern[player_pattern_i]
+        local pl_move = pl.pattern[pl.t]
         local a_move = get_pattern_move_offset(a, -1)
-        player_big_pattern[shape_key][a][player_pattern_i] = tern(
+        player_big_pattern[shape_key][a][pl.t] = tern(
             pair_equal(pl_move, a_move), pl_move, OTHER)
     end
 end
@@ -896,9 +928,9 @@ function init_player_big_pattern()
     }
     for shape, t in pairs(player_big_pattern) do
         for a in all(actors) do
-            if not is_player(a) then
+            if not a.is_player then
                 t[a] = {}
-                for i=1,player_pattern_size do
+                for i=1,#pl.pattern do
                     add(t[a], OTHER)
                 end
             end
@@ -1008,10 +1040,9 @@ end
 
 -- give player ability of animal it mimics
 function mimic()
-    player_big_pattern_mimic()
-    player_mimic()
-    animal_big_mimic()
     animal_mimic()
+    player_big_pattern_mimic()
+    animal_big_mimic()
 end
 
 function transform_player(a, new_pos)
@@ -1032,6 +1063,8 @@ function transform_animal(a, other, new_pos)
     a.spr_2 = other.spr_2
     a.display_name = other.display_name
     if (other.spr_2 != nil) a.display_name = "chimera"
+    a.comp = {other.spr[1][1]}
+    if (other.spr_2 != nil) add(a.comp, other.spr_2[1][1])
     transform_vfx(other, 8, 20)
     transform_vfx(a, get_spr_col(other.spr), 20, get_spr_col(other.spr_2))
 end
@@ -1057,7 +1090,8 @@ function merge_big_animal(a, o1, o2)
         "vishab",
         a.shape,
         false,
-        {{a.spr[1][1], o2.spr[1][1]}, {nil, nil}}
+        {{a.spr[1][1], o2.spr[1][1]}, {nil, nil}},
+        {o1.spr[1][1], o2.spr[1][1], a.spr[1][1]}
     )
 
 
@@ -1065,28 +1099,30 @@ function merge_big_animal(a, o1, o2)
     local new_o1 = make_actor(
         a.x,
         a.y,
-        {{o1.spr[1][1], nil}, {}},
+        {{o1.spr[1][1], nil}, {nil, nil}},
         a.pattern,
         table_concat(a.move_abilities, o1.move_abilities),
         table_concat(a.push_abilities, o1.push_abilities),
         "chimera",
         {1,1},
         false,
-        {{a.spr[1][2], nil}, {}}
+        {{a.spr[1][2], nil}, {nil, nil}},
+        {o1.spr[1][1], a.spr[1][1]}
     )
 
     -- o2 -> [a, o2]
     local new_o2 = make_actor(
         a.x+1,
         a.y,
-        {{o2.spr[1][1], nil}, {}},
+        {{o2.spr[1][1], nil}, {nil, nil}},
         a.pattern,
         table_concat(a.move_abilities, o2.move_abilities),
         table_concat(a.push_abilities, o2.push_abilities),
         "chimera",
         {1,1},
         false,
-        {{a.spr[1][2], nil}, {}}
+        {{a.spr[1][2], nil}, {nil, nil}},
+        {o2.spr[1][1], a.spr[1][1]}
     )
 
     -- TODO: mark the actors we are going to delete as "used"
@@ -1107,33 +1143,29 @@ function merge_animals(a, b)
     b.move_abilities = copy_table(merged_move_abilities)
     a.spr_2 = b.spr
     b.spr_2 = a.spr
-end
-
-function player_mimic()
-    for a in all(actors) do
-        if not is_player(a) and
-           is_mimic(player_pattern, a.pattern, player_pattern_size, player_pattern_i) and
-           pl.spr != a.spr and
-           pair_equal(pl.shape, a.shape) then
-            transform_player(a)
-        end
-    end
+    a.comp = {a.spr[1][1], b.spr[1][1]}
+    b.comp = {a.spr[1][1], b.spr[1][1]}
 end
 
 function animal_mimic()
     for a in all(actors) do
         for b in all(actors) do
-            if (a.spr != b.spr and a.spr_2 == nil and b.spr_2 == nil and
-               not is_player(a) and not is_player(b) and 
-               is_mimic(a.pattern, b.pattern, #a.pattern, 0) and
+            if (not is_comp_equal(a, b) and 
+               is_mimic(a.pattern, b.pattern, #a.pattern, tern(a.is_player, a.t, 0)) and
                a.no_trans_count <= 0 and b.no_trans_count <= 0 and
                a.shape[1] == b.shape[1] and a.shape[2] == b.shape[2] and
                pair_equal(a.shape, {1,1}) and pair_equal(b.shape, {1,1})) then
-                merge_animals(a, b)
-                play_player_sfx("transform")
-                debug_log("animal_mimic")
-                transform_vfx(a, get_spr_col(b.spr), 20, get_spr_col(a.spr_2))
-                transform_vfx(b, get_spr_col(a.spr), 20, get_spr_col(b.spr_2))
+                if a.is_player then
+                    transform_player(b)
+                elseif b.is_player then
+                    transform_player(a)
+                else
+                    merge_animals(a, b)
+                    play_player_sfx("transform")
+                    debug_log("animal_mimic")
+                    transform_vfx(a, get_spr_col(b.spr), 20, get_spr_col(a.spr_2))
+                    transform_vfx(b, get_spr_col(a.spr), 20, get_spr_col(b.spr_2))
+                end
             end
         end
     end
@@ -1192,8 +1224,8 @@ end
 function get_player_pattern_coords()
     local coords = {}
     for i=3,1,-1 do
-        local p_i = ((player_pattern_i - i) % player_pattern_size) + 1
-        local pattern_move = player_pattern[p_i]
+        local p_i = ((pl.t - i) % #pl.pattern) + 1
+        local pattern_move = pl.pattern[p_i]
         add(coords, pattern_move)
     end
     return rev_pattern(coords)
@@ -1214,8 +1246,7 @@ function get_player_pattern_tile_coords()
     return coords
 end
 
--->8
--- level and map
+-- == LEVEL and MAP ==
 
 function make_tile(tile_spr)
     local tile = {
@@ -1305,8 +1336,7 @@ function get_sprite(x,y,l)
     return mget(i,j)
 end
 
--->8
--- vfx
+-- == VFX ==
 
 function fuzz_trail_vfx(r1, c1, r2, c2, col)
     fuzz_line_vfx({{r1*8+4, c1*8+4}, {r2*8+4, c2*8+4}}, col, 2, nil, 3, 0)
@@ -1508,8 +1538,7 @@ function explode_vfx(pos, col, size, count, min_dur, max_dur, min_spd, max_spd)
     end
 end
 
--->8
--- draw
+-- == DRAW ==
 
 function draw_splash()
     cls()
@@ -1703,8 +1732,7 @@ function draw_ui()
     end
 end
 
--->8
--- collision
+-- == COLLISION ==
 
 -- body = {
 --    pos = {col,row}
@@ -1738,11 +1766,14 @@ function form_shape(a, b)
     return nil
 end
 
--->8
--- debug
+-- == DEBUG ==
 
-function draw_debug()
-    print(debug, 0, 0, 8)
+function draw_debug(file)
+    if file != nil then
+        printh(debug, file, true)
+    else
+        print(debug, 0, 0, 8)
+    end
     if SHOW_STATS then
         print("mem: "..stat(0),80,0,7)
         print("cpu: "..stat(1),80,10,7)
@@ -1763,7 +1794,7 @@ end
 
 function debug_log_pair_table(xs)
     for i = 1,#xs do
-        debug = pair_str(xs[i]).."\n"..debug
+        debug ..= pair_str(xs[i]).."\n"..debug
     end
 end
 
@@ -1786,8 +1817,7 @@ function str_player_big_pattern()
     return out
 end
 
--->8
--- game loop
+-- == GAME LOOP ==
 
 function is_paused()
     return game.pause_count > 0
@@ -1888,7 +1918,7 @@ function _draw()
     elseif game.state == "play" then
         draw_play()
     end
-    if (debug_mode) draw_debug()
+    if (debug_mode) draw_debug(DEBUG_OUT_FILE)
 end
 
 function draw_play()
