@@ -1125,6 +1125,11 @@ function merge_big_animal(a, o1, o2)
         {o2.spr[1][1], a.spr[1][1]}
     )
 
+    -- dont allow them to transform for one pattern loop
+    new_big.no_trans_count = flr((#new_big.pattern - 1) * 1.5) -- don't transform until doing a pattern loop
+    new_o1.no_trans_count = flr((#new_o1.pattern - 1) * 1.5) -- don't transform until doing a pattern loop
+    new_o2.no_trans_count = flr((#new_o2.pattern - 1) * 1.5) -- don't transform until doing a pattern loop
+
     -- TODO: mark the actors we are going to delete as "used"
     --       so that they dont participate in other merges
     
@@ -1159,10 +1164,9 @@ function animal_mimic()
                     transform_player(b)
                 elseif b.is_player then
                     transform_player(a)
-                else
+                elseif #a.comp < 2 and #b.comp < 2 then
                     merge_animals(a, b)
                     play_player_sfx("transform")
-                    debug_log("animal_mimic")
                     transform_vfx(a, get_spr_col(b.spr), 20, get_spr_col(a.spr_2))
                     transform_vfx(b, get_spr_col(a.spr), 20, get_spr_col(b.spr_2))
                 end
