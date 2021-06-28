@@ -85,7 +85,7 @@ tile_display_names = {
     [ground] = "ground",
     [cloud] = "cloud",
     [cloud_small] = "cloud",
-    [teru] = "テル"
+    [teru] = "manish"
 }
 
 UP =    {x= 0, y =-1}
@@ -157,7 +157,7 @@ npcs = {
         pattern = {DOWN, DOWN, DOWN, UP, UP, UP},
         move_abilities = {teru},
         push_abilities = {tree_small, rock_small},
-        display_name = "ネ⬇️➡️ネ⬇️もネ⬇️❎ル",
+        display_name = "vishab",
         shape = {2, 1}
     }
 }
