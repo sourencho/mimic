@@ -6,3 +6,7 @@ A tile based puzzle game where you can transform into animals by mimicking their
 ![demo](images/demo7.gif)
 
 Made by [sourenp](https://github.com/sourenp), [v3rse](https://github.com/v3rse)
+
+## Resources
+
+- https://github.com/clowerweb/Lib-Pico8
