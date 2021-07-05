@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
--- mimic v0.4.0
+-- mimic v0.4.1
 -- by sourencho
 
 VERSION = "v0.4.1"
