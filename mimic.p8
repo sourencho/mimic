@@ -4,13 +4,13 @@ __lua__
 -- mimic v0.4.0
 -- by sourencho
 
-VERSION = "v0.4.0"
+VERSION = "v0.4.1"
 
 -- DATA
 
 -- SETTINGS
-start_level = 11
-level_count = 12
+start_level = 0
+level_count = 11
 skip_levels = {7}
 
 tutorial_level = 15
@@ -1622,20 +1622,20 @@ end
 function draw_splash()
     cls()
 
-    print(splash_keys_3, hcenter(splash_keys_3)-2, 105, 8)
+    print(splash_keys_3, hcenter(splash_keys_3)-2, 80, 8)
 
     if(game.tick % 60 > 0 and game.tick % 60 < 20) cls()
 
 
-    map(117,60,36,10,8,4)
-    print("ALPHA", 94, 20, 1)
+    map(117,60,32,50,8,4)
+    print("ALPHA", 92, 60, 1)
     print(VERSION, 103, 121, 1)
 
-    print(splash_inst_1, hcenter(splash_inst_1), 54, 13)
-    print(splash_inst_2, hcenter(splash_inst_2), 64, 13)
+    -- print(splash_inst_1, hcenter(splash_inst_1), 54, 13)
+    -- print(splash_inst_2, hcenter(splash_inst_2), 64, 13)
 
-    print(splash_keys_1, hcenter(splash_keys_1), 78, 13)
-    print(splash_keys_2, 48, 88, 13)
+    -- print(splash_keys_1, hcenter(splash_keys_1), 78, 13)
+    -- print(splash_keys_2, 48, 88, 13)
 end
 
 function draw_won()
@@ -2067,12 +2067,12 @@ function _draw()
 end
 
 function draw_tutorial()
-    print(splash_inst_1, hcenter(splash_inst_1), 14, 6)
-    print(splash_inst_2, hcenter(splash_inst_2), 22, 6)
-
     if tutorial_skippable then
         print(splash_keys_3, hcenter(splash_keys_3)-2, 114, 8)
     end
+
+    print(splash_inst_1, hcenter(splash_inst_1), 14, 6)
+    print(splash_inst_2, hcenter(splash_inst_2), 22, 6)
 end
 
 function draw_play()
