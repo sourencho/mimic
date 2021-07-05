@@ -855,7 +855,7 @@ function player_input()
     if (btnp(5)) then
         if game.state == "splash" then
             game.state = "tutorial"
-        elseif game.state == "tutorial" then
+        elseif game.state == "tutorial" and tutorial_skippable then
             game.state = "play"
             change_level = start_level
         elseif game.state == "play" then
