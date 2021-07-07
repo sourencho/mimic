@@ -1627,14 +1627,14 @@ end
 function draw_splash()
     cls()
 
-    print(splash_keys_3, hcenter(splash_keys_3)-2, 80, 8)
+    print(splash_keys_3, hcenter(splash_keys_3)-2, 70, 8)
 
     if(game.tick % 60 > 0 and game.tick % 60 < 20) cls()
 
-
-    map(117,60,32,50,8,4)
-    print("ALPHA", 92, 60, 1)
+    map(117,60,32,40,8,4)
+    print("ALPHA", 92, 50, 1)
     print(VERSION, 103, 121, 1)
+    print("sourencho", 2, 121, 1)
 
     -- print(splash_inst_1, hcenter(splash_inst_1), 54, 13)
     -- print(splash_inst_2, hcenter(splash_inst_2), 64, 13)
