@@ -1,18 +1,18 @@
 pico-8 cartridge // http://www.pico-8.com
 version 32
 __lua__
--- mimic v0.4.1
+-- mimic v0.4.2
 -- by sourencho
 
-VERSION = "v0.4.1"
+VERSION = "v0.4.2"
 
 -- DATA
 
 -- SETTINGS
-start_level = 12
-level_count = 14
+start_level = 0
+level_count = 11
 skip_levels = {7}
-skip_tutorial = true
+skip_tutorial = false
 
 tutorial_level = 15
 tutorial_speed = 20
@@ -1236,7 +1236,7 @@ function animal_mimic()
         for b in all(actors) do
             if (not is_comp_equal(a, b) and 
                is_mimic(a.pattern, b.pattern, #a.pattern, tern(a.is_player, a.t, 0)) and
-               a.no_trans_count <= 0 and b.no_trans_count <= 0 and
+               ((a.no_trans_count <= 0 and b.no_trans_count <= 0) or (a.is_player or b.is_player)) and
                a.shape[1] == b.shape[1] and a.shape[2] == b.shape[2] and
                pair_equal(a.shape, {1,1}) and pair_equal(b.shape, {1,1})) then
                 if a.is_player then
@@ -1735,8 +1735,8 @@ function draw_level()
         print("move", 21, 12, 1)
         print("\139\145\148\131", 13, 22, 1)
     elseif game.level == 1 then
-        print("restart", 85, 18, 1)
-        print("\151", 94, 26, 1)
+        print("restart", 86, 17, 1)
+        print("\151", 86 + 10, 17 + 8, 1)
     end
 
 end
