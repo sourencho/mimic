@@ -9,8 +9,8 @@ VERSION = "v0.4.2"
 -- DATA
 
 -- SETTINGS
-start_level = 7
-level_count = 12
+start_level = 1
+level_count = 13
 skip_levels = {6}
 skip_tutorial = true
 
@@ -1655,8 +1655,9 @@ function draw_won()
     draw_particles()
 end
 
-function draw_level_splash_2(l)
-    --cls(7)
+function draw_level_splash(l)
+    cls(0)
+
     local txt_clr
     local box_clr = 1
     local margin = 3
@@ -1704,13 +1705,6 @@ function draw_level_splash_2(l)
     end
     draw_particles()
     draw_actor(pl)
-end
-
-function draw_level_splash(l)
-    draw_actor(pl)
-    draw_particles()
-    local level_text="level "..l
-    print(level_text, hcenter(level_text), vcenter(level_text), 1)
 end
 
 function draw_level()
@@ -2002,6 +1996,10 @@ function _update()
         -- noop
     elseif game.state == "tutorial" then
         update_tutorial()
+    elseif game.state == "level_splash" then
+        if (game.tick - game.level_end_tick > 50) game.state = "play"
+    elseif game.state == "restart" then
+        if (game.tick - game.level_end_tick > 30) game.state = "play"
     elseif game.state == "play" then
         update_play()
     elseif game.state == "won" then
@@ -2053,11 +2051,13 @@ function update_play()
         init_level(game.level)
         game.restart_level = false
         particles={}
+        game.state = "restart"
         return
     end
 
     if change_level != game.level then
         init_level(change_level)
+        game.state = "level_splash"
         return
     end
 
@@ -2077,6 +2077,10 @@ function _draw()
         draw_splash()
     elseif  game.state == "won" then
         draw_won()
+    elseif game.state == "level_splash" then
+        draw_level_splash(game.level)
+    elseif game.state == "restart" then 
+        draw_restart()
     elseif game.state == "play" or game.state == "tutorial" then
         draw_play()
     end
@@ -2097,17 +2101,19 @@ function draw_tutorial()
     print(splash_inst_2, hcenter(splash_inst_2), 22, 6)
 end
 
+function draw_restart()
+    for i=0,1000 do
+        circfill(rnd(128), rnd(128), rnd(2), rnd(1))
+    end
+end
+
 function draw_play()
     cls()
-    if game.tick - game.level_end_tick < 50 and game.state != "tutorial" then
-        draw_level_splash_2(game.level)
-    else
-        draw_level()
-        draw_actors()
-        draw_particles()
-        draw_ui()
-        if (game.state == "tutorial") draw_tutorial()
-    end
+    draw_level()
+    draw_actors()
+    draw_particles()
+    draw_ui()
+    if (game.state == "tutorial") draw_tutorial()
 end
 
 __gfx__
