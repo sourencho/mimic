@@ -856,6 +856,7 @@ function player_input()
             game.state = "tutorial"
         elseif game.state == "tutorial" and tutorial_skippable then
             change_level = start_level
+            particles={}
         elseif game.state == "play" then
             game.restart_level = true
         else
@@ -1627,6 +1628,7 @@ end
 function draw_splash()
     cls()
 
+    print(splash_keys_3, hcenter(splash_keys_3)-2, 71, 1)
     print(splash_keys_3, hcenter(splash_keys_3)-2, 70, 8)
 
     if(game.tick % 60 > 0 and game.tick % 60 < 20) cls()
@@ -1977,7 +1979,6 @@ function menu_choose_level(b)
     change_level = max(0, change_level)
 
     if game.level != tutorial_level then
-        print("here")
         menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
     end
 
@@ -2094,11 +2095,17 @@ end
 
 function draw_tutorial()
     if tutorial_skippable then
+        print(splash_keys_3, hcenter(splash_keys_3)-2, 115, 1)
         print(splash_keys_3, hcenter(splash_keys_3)-2, 114, 8)
     end
 
+    print(splash_inst_1, hcenter(splash_inst_1), 15, 1)
     print(splash_inst_1, hcenter(splash_inst_1), 14, 6)
+    print(splash_inst_2, hcenter(splash_inst_2), 23, 1)
     print(splash_inst_2, hcenter(splash_inst_2), 22, 6)
+    print("mimicking", 26, 22, 8)
+
+    print("movement", 82, 22, 14)
 end
 
 function draw_restart()
