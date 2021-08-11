@@ -669,7 +669,6 @@ end
 function npc_die(a)
     a.t = 0
     del(actors, a)
-    add(dying, a)
     sfx(die_sfx)
 end
 
@@ -712,9 +711,7 @@ function update_pattern(a, new_move)
     -- vfx
     local frame_len = #a.pattern - 1
     sfx(change_pattern_sfx)
-    -- confused_effects(a, new_move, old_move, 60)
     transform_vfx(a, get_spr_col(a.spr), 60, get_spr_col(a.spr_2))
-    -- pause(slow_speed * 2)
 end
 
 function update_actor(a)
@@ -737,7 +734,6 @@ function update_actor(a)
 
         -- move
         if can_move(new_pos, a) and not is_paused() then
-            -- fuzz_trail_vfx(a.x, a.y, new_x, new_y, tern(a.is_player, 8, get_spr_col(a.spr)))
 
             a.pos = new_pos
 
@@ -787,10 +783,6 @@ function update_particles()
     for p in all(remove) do
         del(particles, p)
     end
-end
-
-function update_dyings()
-    foreach(dying, update_dying)
 end
 
 function init_actors(l)
@@ -904,80 +896,6 @@ end
 
 -- == MECHANIC ==
 
--- BIG PATTERN
-
--- function player_big_pattern_mimic()
---     for shape_key, actor_to_pat in pairs(player_big_pattern) do
---         for a in all(actors) do
---             local a_shape_key = 10*a.shape[1] + a.shape[2]
---             if not a.is_player and a_shape_key == shape_key then
---                 for pair_actor, big_pattern in pairs(actor_to_pat) do
---                     if is_mimic(big_pattern, a.pattern, #pl.pattern, pl.t) then
---                         local new_pos = {min(pl.x, pair_actor.x), min(pl.y, pair_actor.y)}
---                         transform_player(a, new_pos)
---                         del(actors, pair_actor)
---                     end
---                 end
---             end
---         end
---     end
--- end
-
--- function update_player_big_pattern()
---     -- for all actors that move, update the players big pattern with then
---     -- if the player moved then update its big pattern with all actors
---     for a in all(actors) do
---         if moved(a) then
---             if a.is_player then
---                 for _a in all(actors) do
---                     _update_player_big_pattern(_a)
---                 end
---             else
---                 _update_player_big_pattern(a)
---             end
---         end
---     end
-
--- end
-
--- function _update_player_big_pattern(a)
---     -- for each shape and animal set the big pattern move if they are adjacent and their moves match
---     -- if their moves dont match then set the pattern move to OTHER 
---     local shape = form_shape(get_body(pl), get_body(a))
---     if shape ~= nil then
---         local shape_key = 10*shape[1] + shape[2]
---         player_big_pattern[shape_key][a][pl.t] = tern(
---             pair_equal(get_last_move(pl), get_last_move(a)), get_last_move(pl), OTHER)
---     end
--- end
-
--- function init_player_big_pattern()
---     player_big_pattern = {
---         -- key is (shape[1]*10 + shape[2])
---         [12] = {
---             -- assuming player always first of pair, each key is an actor
---             -- a1 = {pattern}
---             -- a2 = {pattern}
---         },
---         [21] = {
---             -- assuming player always first of pair, each key is an actor
---             -- a1 = {pattern}
---             -- a2 = {pattern}
---         }
---     }
---     for shape, t in pairs(player_big_pattern) do
---         for a in all(actors) do
---             if not a.is_player then
---                 t[a] = {}
---                 for i=1,#pl.pattern do
---                     add(t[a], OTHER)
---                 end
---             end
---         end
---     end
--- end
-
-
 function init_big_patterns()
     animal_big_patterns = {}
     for i=1,#actors-1 do
@@ -1010,54 +928,10 @@ function update_big_patterns()
                         shape_key == pair_shape_key and pos_equal(get_last_move(a), get_last_move(b)),
                         get_last_move(a), OTHER)
                 end
-                -- local pattern_index = tern(a.is_player or b.is_player, pl.t, a.t % #a.pattern + 1)
-                -- animal_big_patterns[animals][shape_key][pattern_index] = 
-                --     tern(shape_key == pair_shape_key and pair_equal(get_last_move(a), get_last_move(b)),
-                --     get_last_move(a), OTHER)
-                -- if shape_key == 21 and (a.is_player or b.is_player) then 
-                --     debug.print({{a.display_name, moved(a)}, {b.display_name, moved(b)}, pattern_index})
-                --     debug.print({get_last_move(a), get_last_move(b), pair_shape_key})
-                --     debug.print(animal_big_patterns[animals][shape_key])
-                -- end
             end
         end
     end
 end
-
-
--- function init_big_patterns()
---     animal_big_patterns = {}
---     for i=1,#actors-1 do
---         for j=i+1,#actors do
---             if not (actors[i].is_player or actors[j].is_player) then
---                 animal_big_patterns[{actors[i], actors[j]}] =
---                 {
---                     [12] = {},
---                     [21] = {},
---                 }
---             end
---         end
---     end
--- end
-
--- function update_big_patterns()
---     for animals, shape_key_to_pattern in pairs(animal_big_patterns) do
---         local a, b = animals[1], animals[2]
---         if moved(a) or moved(b) then
---             for shape_key, pattern in pairs(shape_key_to_pattern) do
---                 local pair_shape = form_shape(get_body(a), get_body(b))
---                 local pair_shape_key = -1
---                 if (pair_shape ~= nil) pair_shape_key = 10*pair_shape[1] + pair_shape[2]
---                 if shape_key == pair_shape_key and
---                    pair_equal(get_last_move(a), get_last_move(b)) then
---                     add(animal_big_patterns[animals][shape_key], get_last_move(a))
---                 else
---                     animal_big_patterns[animals][shape_key] = {}
---                 end
---             end
---         end
---     end
--- end
 
 function animal_big_mimic()
     local actors_to_add = {}
@@ -1432,22 +1306,6 @@ end
 
 -- == VFX ==
 
-function fuzz_trail_vfx(r1, c1, r2, c2, col)
-    fuzz_line_vfx({{r1*8+4, c1*8+4}, {r2*8+4, c2*8+4}}, col, 2, nil, 3, 0)
-end
-
-function box_vfx(pos, col)
-    local box_particle = {
-        pos = v_mults(pos, 8),
-        col = col,
-        draw_fn = draw_box,
-        start_tick = game.tick,
-        end_tick = game.tick + 30,
-        meta_data = {}, 
-    }
-    add(particles, box_particle)
-end
-
 function fuzz_line_vfx(l, col, dur, col2, speed, max_size)
     local x = l[1][1]
     local y = l[1][2]
@@ -1497,10 +1355,6 @@ function draw_fuzz(pos, col, curr_tick, start_tick, end_tick, meta_data)
     circfill(pos.x + meta_data["dx"], pos.y + meta_data["dy"], meta_data["size"], col)
 end
 
-function draw_box(pos, col, curr_tick, start_tick, end_tick, meta_data)
-    rect(pos.x, pos.y, pos.x + 7, pos.y + 7, col)
-end
-
 function draw_spark(pos, col, curr_tick, start_tick, end_tick, meta_data)
     local delta = curr_tick - start_tick
     local x = pos.x + meta_data.dir.x * delta * meta_data.spd
@@ -1513,28 +1367,6 @@ function draw_heart(pos, col, curr_tick, start_tick, end_tick, meta_data)
     if (game.tick % 8) < 4 then waver *= -1 end 
     waver += ({[true]=1,[false]=-1})[(rnd() > 0.5)]*flr(rnd(1))
     print("\135", pos.x + (waver - 4), pos.y - (curr_tick - start_tick), 8)
-end
-
-function draw_confused_animal(pos, col, curr_tick, start_tick, end_tick, meta_data)
-    print("!", pos.x + 1, pos.y + 1, col)
-    print("!", pos.x + 4, pos.y + 1, col)
-end
-
-function draw_dot(pos, col, curr_tick, start_tick, end_tick, meta_data)
-    rectfill(pos.x + 3, pos.y + 3, pos.x + 4, pos.y + 4, col)
-end
-
-function draw_blocked_cross(pos, col, curr_tick, start_tick, end_tick, meta_data)
-    line(pos.x + 2, pos.y + 2, pos.x + 5, pos.y + 5, col)
-    line(pos.x + 2, pos.y + 5, pos.x + 5, pos.y + 2, col)
-end
-
--- confused effect when animal needs to change pattern
-function confused_effects(a, new_move, old_move, dur)
-    local blocked_tile = v_addv(a.pos, old_move)
-    for k, l in pairs(get_tile_lines(blocked_tile)) do
-        fuzz_line_vfx(l, 8, dur, 2, 1)
-    end
 end
 
 -- heart pops up when you meet an animal
@@ -1604,13 +1436,6 @@ function transform_vfx(a, col1, dur, col2)
         for k, l in pairs(tile_lines[i]) do
             fuzz_line_vfx(l, col1, dur, col2, 2, 1)
         end
-    end
-end
-
-function transform_vfx_crude(a)
-    if (not debug_mode) return 
-    for pos in all(add(tiles, get_pattern_tile_coords(a))) do
-        box_vfx(pos, 8)
     end
 end
 
@@ -1784,19 +1609,12 @@ function draw_actor(a)
     pal()
 end
 
-function draw_dying(a)
-    spr(a.spr, a.x*8, a.y*8, 1, 1, a.flip_x)
-    print("?", a.x*8 + 1, a.y*8 + 1, 8)
-    print("!", a.x*8 + 4, a.y*8 + 1, 8)
-end
-
 function draw_particle(p)
     p.draw_fn(p.pos, p.col, game.tick, p.start_tick, p.end_tick, p.meta_data)
 end
 
 function draw_actors()
     foreach(actors, draw_actor)
-    foreach(dying, draw_dying)
 end
 
 function draw_particles()
@@ -1833,6 +1651,7 @@ end
 
 -- == COLLISION ==
 
+-- SCHEMA
 -- body = {
 --    pos = {col,row}
 --    shape = {width, height}
@@ -1871,32 +1690,6 @@ function body_size(b)
 end
 
 -- == DEBUG ==
-
--- function draw_debug(file)
---     if file != nil then
---         printh(debug, file, true)
---     else
---         print(debug, 0, 0, 8)
---     end
--- end
-
--- function debug_log(s)
---     if(s == null) s = "nil"
---     debug = s.."\n"..debug
--- end
-
--- function debug_log_table(xs)
---     for x in all(xs) do
---         debug ..= x.." "
---     end
---     debug ..="\n"
--- end
-
--- function debug_log_pair_table(xs)
---     for i = 1,#xs do
---         debug ..= pair_str(xs[i]).."\n"..debug
---     end
--- end
 
 -- function pair_str(p)
 --     return (p[1] or "nil").."_"..(p[2] or "nil")
@@ -2190,10 +1983,10 @@ dd1da1aa000000000aaaaaa00111111000000000000ee00000eeee000cccccc000cccc0000ffffff
 0004400000044000000440000077770007777000077770000077770000ccccccccccccccccccccc000cccccccccccccccccccc00cccccc000000020001000010
 0000000000000000000000000000000000000000000000000000000000000000000000000cccccc000000000cccccccc00000000000000000000000000000000
 000000000000000010000000000007000000000000000000000007000000000000000000000000000cccccc00cccccc000000000000000000000000000000000
-0000000000100000000000100000777000000700000007000000777000cccccccccccccccccccccc0cccccc00cc77cc00000f000000000000000000000000000
-001000000000000000000000000000000000777000007770000000000cccccccccccc77ccccccccc0cccccc00c7cc7c0000fff00000000000100000000002000
-000000000000000000100000007700000770000007700000007700000ccc77cccccc7cc7ccc77ccc0cc77cc00cccccc000fffff0000000000000020001000000
-000000000000001000000000077770007777000077770000077770000cc7cc7cc77ccccccc7cc7cc0c7cc7c00cc77cc0000fff00000000000000000000000000
+0000000000100000000000100000777000000700000007000000777000cccccccccccccccccccccc0cccccc00cc77cc00000f0000000a0000000000000000000
+001000000000000000000000000000000000777000007770000000000cccccccccccc77ccccccccc0cccccc00c7cc7c0000fff00000aa0000100000000002000
+000000000000000000100000007700000770000007700000007700000ccc77cccccc7cc7ccc77ccc0cc77cc00cccccc000fffff000aaa0000000020001000000
+000000000000001000000000077770007777000077770000077770000cc7cc7cc77ccccccc7cc7cc0c7cc7c00cc77cc0000fff00000a00000000000000000000
 000010000000000000000000077777707777770077777700077777700ccccccc7cc7cccccccccccc0cccccc00c7cc7c00000f000000000000020000000000010
 000000001001000010000000000000000000000000000000000000000ccccccccccccccccccccccc0cccccc00cccccc000000000000000000000010000200000
 000000000000000000000001000000000000000000000000000000000cccccc000000000000000000cccccc00cccccc000000000000000000000000000000000
@@ -2234,15 +2027,15 @@ dd1da1aa000000000aaaaaa00111111000000000000ee00000eeee000cccccc000cccc0000ffffff
 1407141407071405241414142414151400000000500000000000000000000000060616160605e4f7e4a716162474849700000000000000000000000000000000
 7504768484c6047506f4e5f4f4e4f4e4000000000000000000000000000000001414140714141414141414141414141414000000000000000000000000000000
 14151414141405151414142514141727000000000000000000000000000000001616160506160615e675161616b7061600000000000000000000000000000000
-750616f5f4151575e5f4e4e4f4f4f4f5000000000000000000000000000000001414141414141414141414141414141414000000000000000000000000000000
+750605f5f4150675e5f4e4e4f4f4f4f5000000000000000000000000000000001414141414141414141414141414141414000000000000000000000000000000
 07141405142405152514071414251414000000000000000000000000000000000616a5e505150605e57687848496160700000000000000000000000000000000
-750606e5f5151575e5f4f5f4e7e4f5e4000000000000000000000000000000001414141414271414141414141414171414000000000000000000000000000000
+750506e5f5061575e5f4f5f4e7e4f5e4000000000000000000000000000000001414141414271414141414141414171414000000000000000000000000000000
 14151417150505151715151414141414000000000000000000000000000000000606b7f6f4e6e516e7e7f4e6e775161400000000000000000000000000000000
-750606e5e5151575e4f4e4e5e5f4e4e4000000000000000000000000000000001407141414141414141714141414141414000000000000000000000000000000
+750605e5e5150675e4f4e4e5e5f4e4e4000000000000000000000000000000001407141414141414141714141414141414000000000000000000000000000000
 14251505e5e6151515f7f4250514141400000000000000720000000000000000061676849794e7e6e5e6e6e7f4a7061700000000000000000000000000000000
-750606e4e4151575e4f4f4f4f4f5e5e5000000000000000091000000000000001427150505150505050505150505141414000000000000000000000000000000
+750506e4e4061575e4f4f4f4f4f5e5e5000000000000000091000000000000001427150505150505050505150505141414000000000000000000000000000000
 05e6f71515e4e7e4e7e615051527141400000000000000000000000000000000060616061676878494e6e6e6f676940600000000000000000000000000000000
-750606e4e41515b4f4f4f5f5e5f5f5e5000000000000000000000000000000001414052714141427160616061605141414000000000000000000000000000000
+750615e4e41506b4f4f4f5f5e5f5f5e5000000000000000000000000000000001414052714141427160616061605141414000000000000000000000000000000
 2415e4e715f6f6e6f6f505e7e415141400000000000000000000000000000000060614141414142475e7e4e6e6e676c400000000000000000000000000000000
 958494e4e4f4f4e5f4f4f4e4f5f5e4e4000000000000000000000000000000001414051417140714061616160615140714000000500000000000000000000007
 140515e5e7f5f7e6e6e7e4f70514141400000000000000000000000000000000161614161514141575f6f4e6e7e6f67500000000000000000000000000000000
@@ -2392,7 +2185,7 @@ __label__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
 __gff__
-0000000000000000000306020604000008000000000000000003060206000000000000000000000000020201000000000000000000000000000200000000000008101060606060020202020202028080040424404040400202020202020080800101214040404002020202020202808010101040404040020202020208218080
+0000000000000000000306020604000008000000000000000003060206000000000000000000000000020201000000000000000000000000000200000000000008101060606060020202020202028080040424404040400202020202020080800101214040404002020202020202808010101040404040020202020208088080
 0808080808080808080808080808080802020202020000000800000000000000020202020000000000000000000000000202020200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 6060605160606060606060606061606000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060616162606060606060606060616060000000000000000000000000000000006057616061616060606061616060606100000000000000000000000000000000
