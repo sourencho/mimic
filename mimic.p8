@@ -9,10 +9,10 @@ VERSION = "v0.4.3"
 -- DATA
 
 -- SETTINGS
-start_level = 0
-level_count = 11
+start_level = 13
+level_count = 14
+skip_tutorial = true
 skip_levels = {3, 5, 6, 8}
-skip_tutorial = false
 
 tutorial_level = 15
 tutorial_speed = 20
@@ -429,8 +429,15 @@ end
 
 -- checks if two actors are made of the same set of animals
 function is_comp_equal(a, b)
-    -- sort(a.comp, function (x, y) return x > y end)
-    -- sort(b.comp, function (x, y) return x > y end)
+    sort(a.comp, function (x, y) return x > y end)
+    sort(b.comp, function (x, y) return x > y end)
+
+    if (a.is_player or b.is_player) then
+        debug.print({"a", a.comp})
+        debug.print({"b", b.comp})
+        debug.print(flat_table_equal(a.comp, b.comp))
+    end
+
     return flat_table_equal(a.comp, b.comp)
 end
 
@@ -492,7 +499,7 @@ function make_actor(pos, spr_n, pattern, move_abilities, push_abilities, display
     a.shape = shape
     a.move_abilities = copy_table(move_abilities)
     a.push_abilities = copy_table(push_abilities)
-    a.comp = comp -- which sprites is this actor made of
+    a.comp = (comp == nil and {spr_n[1][1]}) or comp -- which sprites is this actor made of
 
     -- pattern
     a.pattern = copy_pos_table(pattern)
@@ -799,8 +806,7 @@ function init_actors(l)
                 n.display_name,
                 n.shape,
                 false,
-                nil,
-                {n.spr_n[1][1]}
+                nil
             )
             add(actors, a)
         end
@@ -838,8 +844,7 @@ function init_player(l)
         "you",
         {1,1},
         true,
-        nil,
-        {})
+        nil)
     pl.t = 1;
     add(actors, pl)
     reset_player_pattern()
@@ -940,6 +945,8 @@ function animal_big_mimic()
     for a in all(actors) do
         local shape_key = 10*a.shape[1] + a.shape[2]
         -- comp >= 3 check is so that the goat + vishab + butter animal doesn't transform back 
+        -- this is a feature that i've intentionally removed so that they dont keep transforming
+        -- back and forth. Also the sprite draw algo doesn't work really well for that case lol
         if (a.is_player or body_size(a) != 3 or #a.comp >= 3) goto cont
         for animals, shape_keys in pairs(animal_big_patterns) do
             local a1, a2 = animals[1], animals[2]
@@ -1072,7 +1079,7 @@ function merge_big_animal(a, o1, o2)
         {1,1},
         false,
         {{a.spr[1][2], nil}, {nil, nil}},
-        {o1.spr[1][1], a.spr[1][1]}
+        {o1.spr[1][1], a.spr[1][2]}
     )
 
     -- o2 -> [a, o2]
@@ -1086,7 +1093,7 @@ function merge_big_animal(a, o1, o2)
         {1,1},
         false,
         {{a.spr[1][2], nil}, {nil, nil}},
-        {o2.spr[1][1], a.spr[1][1]}
+        {o2.spr[1][1], a.spr[1][2]}
     )
 
     -- dont allow them to transform for one pattern loop
@@ -1113,17 +1120,16 @@ function merge_animals(a, b)
     a.spr_2 = b.spr
     b.spr_2 = a.spr
     a.comp = {a.spr[1][1], b.spr[1][1]}
-    b.comp = {a.spr[1][1], b.spr[1][1]}
+    b.comp = {b.spr[1][1], a.spr[1][1]}
 end
 
 function animal_mimic()
     for a in all(actors) do
         for b in all(actors) do
-            if (not is_comp_equal(a, b) and 
-               is_mimic(a.pattern, b.pattern, #a.pattern, tern(a.is_player, a.t, 0)) and
+            if a != b and is_mimic(a.pattern, b.pattern, #a.pattern, tern(a.is_player, a.t, 0)) and
                ((a.no_trans_count + b.no_trans_count <= 0) or (a.is_player or b.is_player)) and
-               a.shape[1] == b.shape[1] and a.shape[2] == b.shape[2] and
-               pair_equal(a.shape, {1,1}) and pair_equal(b.shape, {1,1})) then
+               a.shape[1] == b.shape[1] and a.shape[2] == b.shape[2] and pair_equal(a.shape, {1,1})
+               and not is_comp_equal(a, b) then
                 if a.is_player then
                     transform_player(b)
                 elseif b.is_player then
@@ -1808,7 +1814,7 @@ function _update()
     elseif game.state == "level_splash" then
         if (game.tick - game.level_end_tick > 50) game.state = "play"
     elseif game.state == "restart" then
-        if (game.tick - game.level_end_tick > 18) game.state = "play"
+        if (game.tick - game.level_end_tick > 16) game.state = "play"
     elseif game.state == "play" then
         update_play()
     elseif game.state == "won" then
