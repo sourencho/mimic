@@ -9,7 +9,7 @@ VERSION = "v0.4.3"
 -- DATA
 
 -- SETTINGS
-start_level = 13
+start_level = 2
 level_count = 14
 skip_tutorial = true
 skip_levels = {3, 5, 6, 8}
@@ -228,6 +228,7 @@ particles = {
     --    meta_data = {}
     --}
 }
+perm_particles = {}
 
 -- == UTIL ==
 
@@ -780,16 +781,16 @@ function post_update_actors()
     end
 end
 
-function update_particles()
+function update_particles(ps)
     remove = {}
-    for p in all(particles) do
+    for p in all(ps) do
         if (p.end_tick < game.tick) then
             add(remove, p)
         end
     end
 
     for p in all(remove) do
-        del(particles, p)
+        del(ps, p)
     end
 end
 
@@ -1460,7 +1461,7 @@ function explode_vfx(pos, col, size, count, min_dur, max_dur, min_spd, max_spd)
                 spd = rnd(max_spd - min_spd) + min_spd,
             },
         }
-        add(particles, spark)
+        add(perm_particles, spark)
     end
 end
 
@@ -1626,6 +1627,7 @@ end
 
 function draw_particles()
     foreach(particles, draw_particle)
+    foreach(perm_particles, draw_particle)
 end
 
 function draw_ui()
@@ -1818,7 +1820,8 @@ function _update()
     elseif game.state == "play" then
         update_play()
     elseif game.state == "won" then
-        update_particles()
+        update_particles(particles)
+        update_particles(perm_particles)
     end    
 end
 
@@ -1872,6 +1875,7 @@ function update_play()
 
     if change_level != game.level then
         init_level(change_level)
+        particles = {} 
         change_state("level_splash")
         return
     end
@@ -1882,7 +1886,8 @@ function update_play()
     update_actors()
     -- update_player_big_pattern()
     update_big_patterns()
-    update_particles()
+    update_particles(particles)
+    update_particles(perm_particles)
     mimic()
     post_update_actors()
 end
