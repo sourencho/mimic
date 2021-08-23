@@ -9,8 +9,8 @@ VERSION = "v0.4.3"
 -- DATA
 
 -- SETTINGS
-start_level = 2
-level_count = 14
+start_level = 14
+level_count = 15
 skip_tutorial = true
 skip_levels = {3, 5, 6, 8}
 
@@ -870,7 +870,7 @@ player_push_abilities = {rock_small, tree_small, cloud_small}
 
 function init_player(l)
     local player_pos = find_sprite(l, player_spr[1][1])
-    pl = make_actor(
+    local p = make_actor(
         player_pos,
         player_spr,
         {},
@@ -880,18 +880,23 @@ function init_player(l)
         {1,1},
         true,
         nil)
-    pl.t = 1;
-    add(actors, pl)
-    reset_player_pattern(pl)
+    p.t = 1;
+    add(actors, p)
+    reset_player_pattern(p)
 end
 
 function player_input()
-    if (btnp(0)) pl.delta.x = -1
-    if (btnp(1)) pl.delta.x = 1
-    if (btnp(2)) pl.delta.y = -1
-    if (btnp(3)) pl.delta.y = 1
+    for p in all(get_players()) do
+        if (btnp(0)) p.delta.x = -1
+        if (btnp(1)) p.delta.x = 1
+        if (btnp(2)) p.delta.y = -1
+        if (btnp(3)) p.delta.y = 1
+
+        -- prevent diagonal movement
+        if (p.delta.x != 0) p.delta.y = 0
+    end
     if (btnp(4) and debug_mode) then
-        -- transform_vfx(pl, 8, 20, 7)
+        -- debug cmd
     end
     if (btnp(5)) then
         if game.state == "splash" then
@@ -906,8 +911,6 @@ function player_input()
         end
     end
 
-    -- prevent diagonal movement
-    if (pl.delta.x != 0) pl.delta.y = 0
 end
 
 function reset_player_pattern(p)
@@ -926,7 +929,7 @@ function update_player(p)
             change_level += 1
         end
         sfx(11)
-        win_vfx(pl.pos)
+        win_vfx(p.pos)
         game.level_end_tick = game.tick
         return
     end
@@ -1116,12 +1119,12 @@ function transform_player_big(a, o1, o2)
     local new_o1 = make_actor(
         a.pos,
         left.spr,
-        copy_pos_table(left.pattern),
+        {},
         copy_table(left.move_abilities),
         copy_table(left.push_abilities),
         "chimera",
         {1,1},
-        false,
+        true,
         left.spr_2,
         left.comp
     )
@@ -1129,15 +1132,20 @@ function transform_player_big(a, o1, o2)
     local new_o2 = make_actor(
         v_addv(a.pos, {x=1, y=0}),
         right.spr,
-        copy_pos_table(right.pattern),
+        {},
         copy_table(right.move_abilities),
         copy_table(right.push_abilities),
         "chimera",
         {1,1},
-        false,
+        true,
         right.spr_2,
         right.comp
     )
+
+    new_o1.t = 1
+    new_o2.t = 1
+    reset_player_pattern(new_o1)
+    reset_player_pattern(new_o2)
 
     a.mimicked = true
     o1.mimicked = true
@@ -1309,25 +1317,25 @@ function get_pattern_tile_coords(a)
     return coords
 end
 
-function get_player_pattern_coords()
+function get_player_pattern_coords(p)
     local coords = {}
     for i=3,1,-1 do
-        local p_i = ((pl.t - i) % #pl.pattern) + 1
-        local pattern_move = pl.pattern[p_i]
+        local p_i = ((p.t - i) % #p.pattern) + 1
+        local pattern_move = p.pattern[p_i]
         add(coords, pattern_move)
     end
     return rev_pattern(coords)
 end
 
-function get_player_pattern_tile_coords()
+function get_player_pattern_tile_coords(p)
     local coords = {}
-    local loc = copy_pos(pl.pos)
-    for pattern_move in all(get_player_pattern_coords()) do
+    local loc = copy_pos(p.pos)
+    for pattern_move in all(get_player_pattern_coords(p)) do
         local new_loc = v_subv(loc, pattern_move)
         add(coords, new_loc)
         loc = new_loc
     end
-    add(coords, pl.pos)
+    add(coords, p.pos)
     return coords
 end
 
@@ -1497,19 +1505,21 @@ end
 -- heart pops up when you meet an animal
 function overlap_effects()
     for a in all(actors) do
-        if (not a.is_player) and
-           collides(get_body(pl), get_body(a)) then
-            local frame_len = #a.pattern - 1
-            local end_tick = game.tick + (4 * frame_len)
-            local heart = {
-                pos = {x = a.pos.x*8 + 4, y = a.pos.y*8 + 4},
-                col = 10,
-                draw_fn = draw_heart,
-                start_tick = game.tick,
-                end_tick = end_tick,
-                meta_data = {},
-            }
-            add(particles, heart)
+        for p in all(get_players()) do
+            if (not a.is_player) and
+               collides(get_body(p), get_body(a)) then
+                local frame_len = #a.pattern - 1
+                local end_tick = game.tick + (4 * frame_len)
+                local heart = {
+                    pos = {x = a.pos.x*8 + 4, y = a.pos.y*8 + 4},
+                    col = 10,
+                    draw_fn = draw_heart,
+                    start_tick = game.tick,
+                    end_tick = end_tick,
+                    meta_data = {},
+                }
+                add(particles, heart)
+            end
         end
     end
 end
@@ -1663,7 +1673,8 @@ function draw_level_splash(l)
         col = flr(row / 4)
     end
     draw_particles()
-    --draw_actor(pl)
+    pal({[8]=1})
+    draw_actor(get_players()[1])
 end
 
 function draw_level()
@@ -1758,7 +1769,7 @@ function draw_ui()
         else
             local p = players[1]
             -- "gota can't"
-            local explain_txt_animal = pl.display_name.." cannot"
+            local explain_txt_animal = p.display_name.." cannot"
             thick_print(explain_txt_animal, hcenter(explain_txt_animal), vcenter(explain_txt_animal) + 8, 9, 1)
 
             -- trees or ground
