@@ -9,7 +9,7 @@ VERSION = "v0.4.3"
 -- DATA
 
 -- SETTINGS
-start_level = 12
+start_level = 2
 level_count = 14
 skip_tutorial = true
 skip_levels = {3, 5, 6, 8}
@@ -207,8 +207,9 @@ change_pattern_sfx = 10
 transform_sfx = 2
 
 function play_player_sfx(action)
+    local p = get_players()[1]
     if(action == "move") then
-        sfx(player_sfx[action][get_dynamic_or_static_tile_class(pl.pos)])
+        sfx(player_sfx[action][get_dynamic_or_static_tile_class(p.pos)])
         return
     end
     sfx(player_sfx[action])
@@ -231,6 +232,20 @@ particles = {
 perm_particles = {}
 
 -- == UTIL ==
+
+function _any(xs, cond)
+    for x in all(xs) do
+        if (cond(x)) return true, x
+    end
+    return false, nil
+end
+
+function _all(xs, cond)
+    for x in all(xs) do
+        if (not cond(x)) return false
+    end
+    return true
+end
 
 -- ternary operator
 function tern(cond, T, F)
@@ -298,6 +313,14 @@ function enum(t, filter)
         i += 1
         if (o) return i, filter(o)
     end
+end
+
+function get_players()
+    local ps = {}
+    for x in all(actors) do
+        if (x.is_player) add(ps, x)
+    end
+    return ps
 end
 
 -- e.g. given UP will return LEFT and RIGHT
@@ -433,12 +456,6 @@ function is_comp_equal(a, b)
     sort(a.comp, function (x, y) return x > y end)
     sort(b.comp, function (x, y) return x > y end)
 
-    if (a.is_player or b.is_player) then
-        debug.print({"a", a.comp})
-        debug.print({"b", b.comp})
-        debug.print(flat_table_equal(a.comp, b.comp))
-    end
-
     return flat_table_equal(a.comp, b.comp)
 end
 
@@ -461,7 +478,7 @@ end
 
 function get_last_move(a)
     if a.is_player then
-        return pl.pattern[pl.t]
+        return a.pattern[a.t]
     else
         return get_pattern_move_offset(a, -1)
     end
@@ -488,9 +505,25 @@ function vcenter(s)
   return 61
 end
 
+function thick_print(s, x, y, c1, c2)
+    print(s, x, y+1, c2)
+    print(s, x, y, c1)
+end
+
 -- == GAME LOGIC == 
 
-function make_actor(pos, spr_n, pattern, move_abilities, push_abilities, display_name, shape, is_player, spr_2, comp)
+function make_actor(
+    pos,
+    spr_n,
+    pattern,
+    move_abilities,
+    push_abilities,
+    display_name,
+    shape,
+    is_player,
+    spr_2,
+    comp
+)
     local a={}
     a.id = get_next_actor_id()
     a.pos = pos
@@ -517,6 +550,7 @@ function make_actor(pos, spr_n, pattern, move_abilities, push_abilities, display
     a.display_name = display_name
 
     a.is_player = is_player
+    a.mimicked = false -- already transformed this mimic loop
 
     return a
 end
@@ -814,11 +848,11 @@ function init_actors(l)
     end
 end
 
-function is_stuck()
-    return not (can_move(v_addv(pl.pos, RIGHT), pl) or
-                can_move(v_addv(pl.pos, LEFT), pl) or
-                can_move(v_addv(pl.pos, UP), pl) or
-                can_move(v_addv(pl.pos, DOWN), pl))
+function is_stuck(p)
+    return not (can_move(v_addv(p.pos, RIGHT), p) or
+                can_move(v_addv(p.pos, LEFT), p) or
+                can_move(v_addv(p.pos, UP), p) or
+                can_move(v_addv(p.pos, DOWN), p))
 end
 
 function no_npc()
@@ -848,7 +882,7 @@ function init_player(l)
         nil)
     pl.t = 1;
     add(actors, pl)
-    reset_player_pattern()
+    reset_player_pattern(pl)
 end
 
 function player_input()
@@ -876,10 +910,10 @@ function player_input()
     if (pl.delta.x != 0) pl.delta.y = 0
 end
 
-function reset_player_pattern()
-    pl.pattern={}
+function reset_player_pattern(p)
+    p.pattern={}
     for i=1,PLAYER_PATTERN_SIZE do
-        add(pl.pattern, zero_pos())
+        add(p.pattern, zero_pos())
     end
     -- init_player_big_pattern()
 end
@@ -943,27 +977,39 @@ end
 function animal_big_mimic()
     local actors_to_add = {}
     local actors_to_del = {}
+    local to_add, to_del = {}, {} 
+    local trans = false -- todo: remove this debug val
     for a in all(actors) do
         local shape_key = 10*a.shape[1] + a.shape[2]
         -- comp >= 3 check is so that the goat + vishab + butter animal doesn't transform back 
         -- this is a feature that i've intentionally removed so that they dont keep transforming
         -- back and forth. Also the sprite draw algo doesn't work really well for that case lol
-        if (a.is_player or body_size(a) != 3 or #a.comp >= 3) goto cont
+        if (body_size(a) != 3 or #a.comp >= 3) goto cont
         for animals, shape_keys in pairs(animal_big_patterns) do
             local a1, a2 = animals[1], animals[2]
             for pair_shape_key, pat in pairs(shape_keys) do
                 if shape_key == pair_shape_key then
                     local maybe_player, other = maybe_get_player_and_other(a1, a2)
-                    if is_mimic(pat, a.pattern, #maybe_player.pattern, maybe_player.t % #maybe_player.pattern + 1) then
+                    if can_mimic({a, a1, a2}) and 
+                    is_mimic(pat, a.pattern, #maybe_player.pattern, maybe_player.t % #maybe_player.pattern + 1) then
                         if maybe_player.is_player then
+                            debug.print("player+actor to big")
+                            trans = true
                             local new_pos = {x = min(maybe_player.pos.x, other.pos.x), y = maybe_player.pos.y}
-                            transform_player(a, new_pos)
-                            actors_to_del = table_concat(actors_to_del, {other})
+                            transform_player(maybe_player, a, new_pos)
+                            to_del = {other}
+                        elseif a.is_player then
+                            debug.print("player to actors")
+                            trans = true
+                            to_add, to_del = transform_player_big(a, a1, a2)
+                            debug.print(to_add)
                         else 
+                            debug.print("actors to actors")
+                            trans = true
                             to_add, to_del = merge_big_animal(a, a1, a2)
-                            actors_to_add = table_concat(actors_to_add, to_add)
-                            actors_to_del = table_concat(actors_to_del, to_del)
                         end 
+                        actors_to_add = table_concat(actors_to_add, to_add)
+                        actors_to_del = table_concat(actors_to_del, to_del)
                         goto cont
                     end
                 end
@@ -975,6 +1021,9 @@ function animal_big_mimic()
 
     foreach(actors_to_del, function(x) del(actors, x) end) 
     foreach(actors_to_add, function(x) add(actors, x) end) 
+
+
+    -- if (trans) debug.print(actors)
 
     -- reset patterns
     if #actors_to_add + #actors_to_del > 0 then 
@@ -1016,14 +1065,22 @@ end
 
 -- give player ability of animal it mimics
 function mimic()
+    reset_mimicked()
     animal_mimic()
     animal_big_mimic()
     -- player_big_pattern_mimic()
 end
 
-function transform_player(a, new_pos)
-    transform_animal(pl, a, new_pos)
-    reset_player_pattern()
+function reset_mimicked()
+    for a in all(actors) do
+        a.mimicked = false
+    end
+end
+
+function transform_player(p, a, new_pos)
+    transform_animal(p, a, new_pos)
+    reset_player_pattern(p)
+    a.mimicked = true
 end
 
 function transform_animal(a, other, new_pos)
@@ -1042,6 +1099,51 @@ function transform_animal(a, other, new_pos)
     if (other.spr_2 != nil) add(a.comp, other.spr_2[1][1])
     transform_vfx(other, 8, 20)
     transform_vfx(a, get_spr_col(other.spr), 20, get_spr_col(other.spr_2))
+    a.mimicked = true
+    other.mimicked = true
+end
+
+function transform_player_big(a, o1, o2)
+    if (o1.pos.x > o2.pos.x or o1.pos.y > o2.pos.y) then 
+        right = o1
+        left = o2
+    else
+        right = o2
+        left = o1
+    end
+
+    -- new players
+    local new_o1 = make_actor(
+        a.pos,
+        left.spr,
+        copy_pos_table(left.pattern),
+        copy_table(left.move_abilities),
+        copy_table(left.push_abilities),
+        "chimera",
+        {1,1},
+        false,
+        left.spr_2,
+        left.comp
+    )
+
+    local new_o2 = make_actor(
+        v_addv(a.pos, {x=1, y=0}),
+        right.spr,
+        copy_pos_table(right.pattern),
+        copy_table(right.move_abilities),
+        copy_table(right.push_abilities),
+        "chimera",
+        {1,1},
+        false,
+        right.spr_2,
+        right.comp
+    )
+
+    a.mimicked = true
+    o1.mimicked = true
+    o2.mimicked = true
+
+    return {new_o1, new_o2}, {a}
 end
 
 -- currently hardcoded to only work for shape {2,1}
@@ -1111,6 +1213,10 @@ function merge_big_animal(a, o1, o2)
     transform_vfx(o2, get_spr_col(a.spr), 20)
     transform_vfx(a, get_spr_col(o1.spr), 20, get_spr_col(o2.spr))
 
+    a.mimicked = true
+    o1.mimicked = true
+    o2.mimicked = true
+
     return {new_big, new_o1, new_o2}, {o1, o2, a}
 end
 
@@ -1122,19 +1228,23 @@ function merge_animals(a, b)
     b.spr_2 = a.spr
     a.comp = {a.spr[1][1], b.spr[1][1]}
     b.comp = {b.spr[1][1], a.spr[1][1]}
+
+    a.mimicked = true
+    b.mimicked = true
 end
 
 function animal_mimic()
     for a in all(actors) do
         for b in all(actors) do
-            if a != b and is_mimic(a.pattern, b.pattern, #a.pattern, tern(a.is_player, a.t, 0)) and
+            if a != b and can_mimic({a, b}) and
+            is_mimic(a.pattern, b.pattern, #a.pattern, tern(a.is_player, a.t, 0)) and
                ((a.no_trans_count + b.no_trans_count <= 0) or (a.is_player or b.is_player)) and
                a.shape[1] == b.shape[1] and a.shape[2] == b.shape[2] and pair_equal(a.shape, {1,1})
                and not is_comp_equal(a, b) then
                 if a.is_player then
-                    transform_player(b)
+                    transform_player(a, b)
                 elseif b.is_player then
-                    transform_player(a)
+                    transform_player(b, a)
                 elseif #a.comp < 2 and #b.comp < 2 then
                     merge_animals(a, b)
                     play_player_sfx("transform")
@@ -1144,6 +1254,13 @@ function animal_mimic()
             end
         end
     end
+end
+
+function can_mimic(as) 
+    for a in all(as) do
+        if (a.mimicked) return false
+    end
+    return true
 end
 
 function is_mimic(pattern_a, pattern_b, pattern_a_size, pattern_a_start) 
@@ -1470,8 +1587,7 @@ end
 function draw_splash()
     cls()
 
-    print(splash_keys_3, hcenter(splash_keys_3)-2, 71, 1)
-    print(splash_keys_3, hcenter(splash_keys_3)-2, 70, 8)
+    thick_print(splash_keys_3, hcenter(splash_keys_3)-2, 71, 8, 1)
 
     if(game.tick % 60 > 0 and game.tick % 60 < 20) cls()
 
@@ -1489,8 +1605,7 @@ end
 
 function draw_won()
     cls()
-    print(won_text, 38, vcenter(won_text)+1, 1)
-    print(won_text, 38, vcenter(won_text)+2, 9)
+    thick_print(won_text, 38, vcenter(won_text), 9, 1)
     if game.tick % (flr(rnd(10)) + 40) == 0 then
         explode_vfx(
             {x = mid(6, flr(rnd(16)), 10), y = mid(8, flr(rnd(16)), 8)},
@@ -1582,7 +1697,7 @@ end
 function draw_actor(a)
     -- change colors to be red
     if a.is_player then
-        pal({[6]=8, [9]=8, [10]=8, [11]=8, [12]=8, [13]=8, [14]=8})
+        pal({[6]=8, [9]=8, [10]=8, [11]=8, [12]=8, [13]=8, [14]=8, [15]=8})
     end
 
     for r=1,a.shape[2] do
@@ -1630,31 +1745,46 @@ function draw_particles()
     foreach(perm_particles, draw_particle)
 end
 
+-- todo: token optimize this
 function draw_ui()
-    if is_stuck() then
-        -- "restart"
+    local players = get_players()
+    if _all(players, is_stuck) then
+        local stuck_text = "you are stuck"
+        thick_print(stuck_text, hcenter(stuck_text), vcenter(stuck_text) - 8, 9, 1)
         stuck_text = "press \151 to restart"
-        print(stuck_text, hcenter(stuck_text), vcenter(stuck_text), 7)
+        thick_print(stuck_text, hcenter(stuck_text), vcenter(stuck_text), 9, 1)
+        if #players >= 1 then
+            return
+        else
+            local p = players[1]
+            -- "gota can't"
+            local explain_txt_animal = pl.display_name.." cannot"
+            thick_print(explain_txt_animal, hcenter(explain_txt_animal), vcenter(explain_txt_animal) + 8, 9, 1)
 
-        -- "gota can't"
-        local explain_txt_animal = pl.display_name.." can't"
-        print(explain_txt_animal, hcenter(explain_txt_animal), vcenter(explain_txt_animal) + 8, 7)
+            -- trees or ground
+            local explain_txt_tiles = ""
 
-        -- trees or ground
-        local explain_txt_tiles = ""
+            local surr_tiles = {}
+            if p.pos.x+1 < 16 then
+                add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(p.pos, RIGHT))])
+            end
+            if p.pos.x-1 > 0 then
+                add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(p.pos, LEFT))])
+            end
+            if p.pos.y+1 < 16 then
+                add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(p.pos, DOWN))])
+            end
+            if p.pos.y-1 > 1 then
+                add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(p.pos, UP))])
+            end
 
-        local surr_tiles = {}
-        if (pl.pos.x+1 < 16) add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(pl.pos, RIGHT))])
-        if (pl.pos.x-1 > 0) add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(pl.pos, LEFT))])
-        if (pl.pos.y+1 < 16) add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(pl.pos, DOWN))])
-        if (pl.pos.y-1 > 1) add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(pl.pos, UP))])
-
-        surr_tiles = table_dedup(surr_tiles)
-        for i=1,#surr_tiles do
-            if (i > 1) explain_txt_tiles ..= " or "
-            explain_txt_tiles ..= surr_tiles[i]
+            surr_tiles = table_dedup(surr_tiles)
+            for i=1,#surr_tiles do
+                if (i > 1) explain_txt_tiles ..= " or "
+                explain_txt_tiles ..= surr_tiles[i]
+            end
+            thick_print(explain_txt_tiles, hcenter(explain_txt_tiles), vcenter(explain_txt_tiles) + 16, 9, 1)
         end
-        print(explain_txt_tiles, hcenter(explain_txt_tiles), vcenter(explain_txt_tiles) + 16, 7)
     end
 end
 
@@ -1826,6 +1956,8 @@ function _update()
 end
 
 function update_tutorial()
+    local p = get_players()[1] -- assume one player
+
     if skip_tutorial then
         init_level(start_level)
         return
@@ -1833,22 +1965,22 @@ function update_tutorial()
 
     if game.level != tutorial_level then
         init_level(tutorial_level)
-        tutorial_player_pos = pl.pos 
+        tutorial_player_pos = p.pos 
     end
 
 
     -- move
-    pl.delta = STILL
+    p.delta = STILL
 
     if tutorial_move_index > #TUTORIAL_MOVES then
         tutorial_move_index = 1
-        del(actors, pl)
+        del(actors, p)
         init_player(game.level)
         tutorial_skippable = true
     end
 
     if game.tick % tutorial_speed == 0 then
-        pl.delta = TUTORIAL_MOVES[tutorial_move_index]
+        p.delta = TUTORIAL_MOVES[tutorial_move_index]
         tutorial_move_index += 1
     end
 
@@ -1914,14 +2046,11 @@ end
 
 function draw_tutorial()
     if tutorial_skippable then
-        print(splash_keys_3, hcenter(splash_keys_3)-2, 115, 1)
-        print(splash_keys_3, hcenter(splash_keys_3)-2, 114, 8)
+        thick_print(splash_keys_3, hcenter(splash_keys_3)-2, 115, 8, 1)
     end
 
-    print(splash_inst_1, hcenter(splash_inst_1), 15, 1)
-    print(splash_inst_1, hcenter(splash_inst_1), 14, 6)
-    print(splash_inst_2, hcenter(splash_inst_2), 23, 1)
-    print(splash_inst_2, hcenter(splash_inst_2), 22, 6)
+    thick_print(splash_inst_1, hcenter(splash_inst_1), 14, 6, 1)
+    thick_print(splash_inst_2, hcenter(splash_inst_2), 22, 6, 1)
     print("mimicking", 26, 22, 8)
 
     print("movement", 82, 22, 14)
@@ -1954,8 +2083,8 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000022220000000
 000000000808000000aaaaaaaaaaaa00000000000088880000000000000000000000000000000ddd0000ddd00ddd0ddd0ddd0ddd000000222200220020000000
 00700700888880000aaaaaaaaaaaaaa0000000000888888000888800009990900099090000000dd000000dd000dd0d0d00dd0d0d000002200220022020000000
-00077000888880000aaadaaaaaaadaa00000000008f8f88008888880099999900999990000dddddd00dddddddddd000ddddd000d000000200020002000000000
-00077000088800000aaaaaaaaaaaaaa0000000000888888008f8f880099999900999990000dddddd00dddddddddddddddddddddd000002202220022200000000
+00077000888880000aaadaaaaaaadaa0000000000878788008888880099999900999990000dddddd00dddddddddd000ddddd000d000000200020002000000000
+00077000088800000aaaaaaaaaaaaaa0000000000888888008787880099999900999990000dddddd00dddddddddddddddddddddd000002202220022200000000
 00700700008000000aaaaaaaaaaaaaa0000000000888888008888880009990900099090000dddddd00dddddddddddddddddddddd000000002000220200000000
 000000000000000000aaaaaaaaaaaa00000000000088880000888800000000000000000000000dd000000dd000dd000000dd0000000000002200200000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000ddd0000ddd00ddd00000ddd0000000000000022000000000000
