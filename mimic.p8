@@ -987,7 +987,6 @@ function animal_big_mimic()
     local actors_to_add = {}
     local actors_to_del = {}
     local to_add, to_del = {}, {} 
-    local trans = false -- todo: remove this debug val
     for a in all(actors) do
         local shape_key = 10*a.shape[1] + a.shape[2]
         -- comp >= 3 check is so that the goat + vishab + butter animal doesn't transform back 
@@ -1002,19 +1001,12 @@ function animal_big_mimic()
                     if can_mimic({a, a1, a2}) and 
                     is_mimic(pat, a.pattern, #maybe_player.pattern, maybe_player.t % #maybe_player.pattern + 1) then
                         if maybe_player.is_player then
-                            debug.print("player+actor to big")
-                            trans = true
                             local new_pos = {x = min(maybe_player.pos.x, other.pos.x), y = maybe_player.pos.y}
                             transform_player(maybe_player, a, new_pos)
                             to_del = {other}
                         elseif a.is_player then
-                            debug.print("player to actors")
-                            trans = true
                             to_add, to_del = transform_player_big(a, a1, a2)
-                            debug.print(to_add)
                         else 
-                            debug.print("actors to actors")
-                            trans = true
                             to_add, to_del = merge_big_animal(a, a1, a2)
                         end 
                         actors_to_add = table_concat(actors_to_add, to_add)
@@ -1030,9 +1022,6 @@ function animal_big_mimic()
 
     foreach(actors_to_del, function(x) del(actors, x) end) 
     foreach(actors_to_add, function(x) add(actors, x) end) 
-
-
-    -- if (trans) debug.print(actors)
 
     -- reset patterns
     if #actors_to_add + #actors_to_del > 0 then 
@@ -1148,10 +1137,17 @@ function transform_player_big(a, o1, o2)
         right.comp
     )
 
+    -- stuff needed for new players
     new_o1.t = 1
     new_o2.t = 1
     reset_player_pattern(new_o1)
     reset_player_pattern(new_o2)
+
+    -- fx
+    play_player_sfx("transform")
+    transform_vfx(o1, 8, 20)
+    transform_vfx(o2, 8, 20)
+    transform_vfx(a, get_spr_col(o1.spr), 20, get_spr_col(o2.spr))
 
     a.mimicked = true
     o1.mimicked = true
@@ -1218,9 +1214,6 @@ function merge_big_animal(a, o1, o2)
     new_o1.no_trans_count = flr((#new_o1.pattern - 1) * 1.5) -- don't transform until doing a pattern loop
     new_o2.no_trans_count = flr((#new_o2.pattern - 1) * 1.5) -- don't transform until doing a pattern loop
 
-    -- TODO: mark the actors we are going to delete as "used"
-    --       so that they dont participate in other merges
-    
     -- fx
     play_player_sfx("transform")
     transform_vfx(o1, get_spr_col(a.spr), 20)
