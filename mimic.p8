@@ -9,7 +9,7 @@ VERSION = "v0.4.3"
 -- DATA
 
 -- SETTINGS
-start_level = 10
+start_level = 0
 level_count = 15
 skip_tutorial = true
 skip_levels = {4, 6, 7, 9}
@@ -1372,7 +1372,7 @@ function init_level(_level)
     init_big_patterns()
 
     if game.level != tutorial_level then
-        menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
+        -- menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
     end
     --music(01)
 end
@@ -1627,38 +1627,36 @@ function draw_won()
 end
 
 function draw_level_splash(l)
-    cls(0)
+    cls()
 
     local txt_clr
-    local box_clr = 1
     local margin = 3
     local padding = 2
     local size = 27
     local row = 0
     local col = 0
-    local x, y
-    local level_text
+
+    pal({[8]=0})
+    draw_actor(get_players()[1])
 
     -- border
-    rect(1,1,127,127,box_clr)
-    rect(2,2,126,126,box_clr)
+    rect(0,0,127,127,1)
+    rect(1,1,126,126,1)
 
+    local level_text = 0
     for i=0,level_count-1 do
         -- coord
-        x = margin + (row % 4) * (size + 2 * padding)
-        y = margin + col * (size + 2 * padding)
+        local x = margin + (row % 4) * (size + 2 * padding)
+        local y = margin + col * (size + 2 * padding)
 
         -- text
-        level_text = i
-        if (i < 10) level_text = "0"..level_text
         if (i == l) then txt_clr = 7 else txt_clr = 1 end
-        if (contains(skip_levels, i)) level_text = "xx"
 
+        if (contains(skip_levels, i)) goto cont
 
         -- draw
-        -- rect(x + padding, y + padding, x + size, y + size, box_clr)
-        -- circ(x + padding + size/2, y + padding + size/2, size / 2, box_clr)
-        print(level_text, x + size/2 - 2, y + size/2 - 1, txt_clr)
+        print(tern(level_text < 10, "0"..level_text, level_text),
+            x + size/2 - 2, y + size/2 - 1, txt_clr)
 
         if i == l and l != level_count-1 then
             spr(58, x + size/2 - 2, y + size/2 + 5)
@@ -1673,10 +1671,11 @@ function draw_level_splash(l)
         -- update
         row += 1
         col = flr(row / 4)
+
+        level_text += 1
+        ::cont::
     end
     draw_particles()
-    pal({[8]=1})
-    draw_actor(get_players()[1])
 end
 
 function draw_level()
@@ -1921,6 +1920,7 @@ function menu_skip_level()
     end
 end
 
+-- todo: update this to show correct level number given skip levels and then re-enable menuitem
 function menu_choose_level(b)
     if (b&1 > 0) change_level -= 1
     if (b&2 > 0) change_level += 1
