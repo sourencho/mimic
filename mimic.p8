@@ -71,10 +71,11 @@ tile_sprites = {
     [water] = 72,
     [rock] = 80,
     [rock_small] = 82,
-    [ground] = 65,
+    [ground] = 66,
     [cloud] = 99,
     [cloud_small] = 67,
-    [teru] = 111
+    [teru] = 111,
+    [win] = 64
 }
 
 tile_display_names = {
@@ -96,6 +97,8 @@ LEFT =  {x=-1, y = 0}
 OTHER = {x=-1, y =-1}
 STILL = {x= 0, y = 0}
 
+red_pal = {[6]=8, [9]=8, [10]=8, [11]=8, [12]=8, [13]=8, [14]=8, [15]=8}
+
 -- GAME
 
 -- sprite values of tiles
@@ -103,7 +106,7 @@ level_static_tiles = {}
 level_dynamic_tiles = {}
 
 game = {
-    state = "splash", -- possible values [splash, play, won]
+    state = "splash",
     level = tutorial_level,
     tick = 0,
     level_end_tick = 0,
@@ -304,6 +307,7 @@ function copy_pos(pos)
     return {x = pos.x, y = pos.y}
 end
 
+--[[
 -- Enumerate and potentially filter a table
 function enum(t, filter)
     local i = 0
@@ -313,6 +317,28 @@ function enum(t, filter)
         i += 1
         if (o) return i, filter(o)
     end
+end
+
+function filter_table(t, f)
+    local out = {}
+    for x in all(t) do
+        if (f(x)) add(out, x)
+    end
+    return out
+end
+
+function random_swap(t)
+    local r1 = flr(rnd(#t)) + 1
+    local r2 = flr(rnd(#t)) + 1
+    t[r1], t[r2] = t[r2], t[r1]
+end
+--]]
+
+function shuffle(t)
+  for i = #t, 1, -1 do
+    local j = flr(rnd(i)) + 1
+    t[i], t[j] = t[j], t[i]
+  end
 end
 
 function get_players()
@@ -1598,21 +1624,31 @@ end
 
 function draw_splash()
     cls()
+    pal()
 
-    thick_print(splash_keys_3, hcenter(splash_keys_3)-2, 71, 8, 1)
+    print(splash_keys_3, hcenter(splash_keys_3), 66, 8)
 
-    if(game.tick % 60 > 0 and game.tick % 60 < 20) cls()
+    if(game.tick % 60 > 0 and game.tick % 60 < 20) then
+        cls()
+    end
 
-    map(117,60,32,40,8,4)
-    print("ALPHA", 92, 50, 1)
+    if game.tick % 40 == 0 then
+        splash_red_sprite_count += 1
+    end
+
+    map(117,60,36,40,8,4)
+    print("ALPHA", 80, 121, 1)
     print(VERSION, 103, 121, 1)
     print("sourencho", 2, 121, 1)
 
-    -- print(splash_inst_1, hcenter(splash_inst_1), 54, 13)
-    -- print(splash_inst_2, hcenter(splash_inst_2), 64, 13)
 
-    -- print(splash_keys_1, hcenter(splash_keys_1), 78, 13)
-    -- print(splash_keys_2, 48, 88, 13)
+    -- local d, r = 0, 50
+    local d, r = -game.tick/400, 50
+    for i=1,#splash_sprites do
+        if (splash_sprite_indexes[i] < splash_red_sprite_count) then pal(red_pal) else pal() end
+        spr(splash_sprites[splash_sprite_indexes[i]], 60 + r * cos(d), 52 + r * sin(d), 1, 1, i % 2 == 0)
+        d += 1 / (#splash_sprites)
+    end
 end
 
 function draw_won()
@@ -1705,7 +1741,7 @@ end
 function draw_actor(a)
     -- change colors to be red
     if a.is_player then
-        pal({[6]=8, [9]=8, [10]=8, [11]=8, [12]=8, [13]=8, [14]=8, [15]=8})
+        pal(red_pal)
     end
 
     for r=1,a.shape[2] do
@@ -1909,8 +1945,29 @@ function increment_tick()
 end
 
 function _init()
+    init_splash()
     init_level(game.level)
     menuitem(1, "skip level", menu_skip_level)
+end
+
+function init_splash()
+    -- create splash sprites
+    splash_sprites = {}
+    splash_sprite_indexes = {}
+    splash_red_sprite_count = 0
+    local i = 1
+    for n=1,2 do
+        for x in all(npcs) do
+            if body_size(x) < 3 then
+                add(splash_sprites, tern(rnd() > 0.5, x.spr_n[1][1], x.spr_n[1][1]+1))
+                add(splash_sprite_indexes, i)
+                i += 1
+            end
+        end
+    end
+    shuffle(splash_sprite_indexes)
+
+    change_state("splash")
 end
 
 function menu_skip_level()
