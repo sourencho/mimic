@@ -4,15 +4,15 @@ __lua__
 -- mimic v0.4.3
 -- by sourencho
 
-VERSION = "v0.4.3"
+VERSION = "V0.4.3"
 
 -- DATA
 
 -- SETTINGS
-start_level = 5
+start_level = 13
 level_count = 15
 skip_tutorial = true
-skip_levels = {4, 6, 7, 9}
+skip_levels = {4, 7, 9}
 
 tutorial_level = 30
 tutorial_speed = 20
@@ -1037,7 +1037,7 @@ function animal_big_mimic()
         -- comp >= 3 check is so that the goat + vishab + butter animal doesn't transform back 
         -- this is a feature that i've intentionally removed so that they dont keep transforming
         -- back and forth. Also the sprite draw algo doesn't work really well for that case lol
-        if (body_size(a) != 3 or #a.comp >= 3) goto cont
+        if (body_size(a) != 3) goto cont
         for animals, shape_keys in pairs(animal_big_patterns) do
             local a1, a2 = animals[1], animals[2]
             for pair_shape_key, pat in pairs(shape_keys) do
@@ -1046,13 +1046,16 @@ function animal_big_mimic()
                     if can_mimic({a, a1, a2}) and 
                     is_mimic(pat, a.pattern, #maybe_player.pattern, maybe_player.t % #maybe_player.pattern + 1) then
                         if maybe_player.is_player then
+                            -- small actor and player into big player
                             local new_pos = {x = min(maybe_player.pos.x, other.pos.x), y = maybe_player.pos.y}
                             transform_player(maybe_player, a, new_pos)
                             to_del = {other}
                         elseif a.is_player then
-                            to_add, to_del = transform_player_big(a, a1, a2)
-                        else 
-                            to_add, to_del = merge_big_animal(a, a1, a2)
+                            -- big player into two small players
+                            to_add, to_del = transform_big_player(a, a1, a2)
+                        elseif (#a.comp < 3) then 
+                            -- two small actors into one big actor
+                            to_add, to_del = merge_into_big_animal(a, a1, a2)
                         end 
                         actors_to_add = table_concat(actors_to_add, to_add)
                         actors_to_del = table_concat(actors_to_del, to_del)
@@ -1146,7 +1149,7 @@ function transform_animal(a, other, new_pos)
     other.mimicked = true
 end
 
-function transform_player_big(a, o1, o2)
+function transform_big_player(a, o1, o2)
     if (o1.pos.x > o2.pos.x or o1.pos.y > o2.pos.y) then 
         right = o1
         left = o2
@@ -1202,7 +1205,7 @@ function transform_player_big(a, o1, o2)
 end
 
 -- currently hardcoded to only work for shape {2,1}
-function merge_big_animal(a, o1, o2)
+function merge_into_big_animal(a, o1, o2)
 
     -- make sure o1 is pointing to the top_left one
     local tmp = o1
