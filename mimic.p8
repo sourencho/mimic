@@ -238,6 +238,8 @@ perm_particles = {}
 
 -- == UTIL ==
 
+function pick(ar,k) k=k or #ar return ar[flr(rnd(k))+1] end
+
 function _any(xs, cond)
     for x in all(xs) do
         if (cond(x)) return true, x
@@ -1001,7 +1003,7 @@ function init_victory()
         add(victory_sprites, player_spr[1][1])
     end
 
-    victory_sprite_candidates = {player_spr[1][1]}
+    victory_sprite_candidates = {player_spr[1][1], player_spr[1][1], player_spr[1][1]}
     for x in all(npcs) do
         if body_size(x) < 3 then
             add(victory_sprite_candidates, x.spr_n[1][1])
@@ -1576,7 +1578,7 @@ function overlap_effects()
 end
 
 function win_vfx(pos)
-    explode_vfx(pos, 10, 1.5, 40, 30, 90, 0.3, 1.5)
+    explode_vfx(pos, {10}, 1.5, 40, 30, 90, 0.5, 1.5)
 end
 
 function transform_vfx(a, col1, dur, col2)
@@ -1625,11 +1627,11 @@ function transform_vfx(a, col1, dur, col2)
     end
 end
 
-function explode_vfx(pos, col, size, count, min_dur, max_dur, min_spd, max_spd)
+function explode_vfx(pos, cols, size, count, min_dur, max_dur, min_spd, max_spd)
     for i=0,count do
         spark = {
             pos = {x = pos.x*8 + 4, y = pos.y*8 + 4},
-            col = col,
+            col = pick(cols),
             draw_fn = draw_spark,
             start_tick = game.tick,
             end_tick = game.tick + rnd(max_dur - min_dur) + min_dur,
@@ -1676,11 +1678,17 @@ end
 
 function draw_victory()
     cls()
-    pal(red_pal)
+    draw_particles()
 
     -- draw player reflection
+    pal(red_pal)
     for i=1,#victory_sprite_pos do
         local v_pos = victory_sprite_pos[i]
+
+        -- draw sparks
+        explode_vfx(v_pos, {1}, 1, 2, 6, 9, 0.3, 1)
+
+        -- draw sprite
         local on_right = v_pos.x*8 > 64
         local total_switch_time = 180
         -- switch sprites over time
@@ -1701,9 +1709,7 @@ function draw_victory()
             --]]
         end
 
-        local v_spr = victory_sprites[i] 
-
-        spr(v_spr, v_pos.x*8, v_pos.y*8, 1, 1, not on_right)
+        spr(victory_sprites[i], v_pos.x*8, v_pos.y*8, 1, 1, not on_right)
     end
     pal()
 
@@ -1712,7 +1718,6 @@ function draw_victory()
     won_text_2 = "- sourencho"
     print(won_text_1, hcenter(won_text_1), 102, 1)
     print(won_text_2, hcenter(won_text_2), 112, 1)
-    draw_particles()
 end
 
 function draw_level_splash(l)
