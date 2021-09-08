@@ -1,16 +1,17 @@
 pico-8 cartridge // http://www.pico-8.com
-version 32
+version 33
 __lua__
 -- mimic v0.4.3
 -- by sourencho
 
-VERSION = "V0.4.3"
+VERSION = "V0.5.0"
 
 -- DATA
 
 -- SETTINGS
-start_level = 3
+start_level = 14
 level_count = 15
+last_level = 14
 skip_tutorial = true
 skip_levels = {4, 7, 9}
 
@@ -24,7 +25,6 @@ player_spr_offset = 32
 splash_inst_1 = "take the form of an animal"
 splash_inst_2 = "by mimicking its movement"
 splash_keys_3 = "start \151"
-won_text = "★ you win ★"
 
 level_size = 16
 ACTOR_ID_INDEX = 0
@@ -889,26 +889,6 @@ function init_actor(spr_n, pos)
     end
 end
 
-function init_actors(l)
-    for n in all(npcs) do
-        local n_pos = find_sprite(l, n.spr_n[1][1])
-        if n_pos != nil then
-            local a = make_actor(
-                n_pos,
-                n.spr_n,
-                n.pattern,
-                n.move_abilities,
-                n.push_abilities,
-                n.display_name,
-                n.shape,
-                false,
-                nil
-            )
-            add(actors, a)
-        end
-    end
-end
-
 function is_stuck(p)
     for d in all(DELTAS) do
         if (can_move(v_addv(p.pos, d), p)) return false
@@ -982,20 +962,50 @@ function reset_player_pattern(p)
     -- init_player_big_pattern()
 end
 
+-- returns true if player is victorious (won last level)
 function check_win()
-    -- check player victory
+    local victory = false
     local players = get_players()
     if _all(players, on_win) then
+        if game.level == last_level then
+            init_victory()
+            victory = true
+        end
+
+        -- proceed to next level
         change_level = game.level + 1
         while contains(skip_levels, change_level) do
             change_level += 1
         end
+
+        -- effects
         sfx(11)
         for p in all(players) do
             win_vfx(p.pos)
         end
         game.level_end_tick = game.tick
-        return
+        return victory
+    end
+    return victory
+end
+
+function init_victory()
+    sfx(11)
+    change_state("won")
+    particles={}
+
+    -- gather win tiles to spawn final visuals on 
+    victory_sprite_pos = find_tiles(game.level, tile_sprites[win])
+    victory_sprites = {}
+    for i=1,#victory_sprite_pos do
+        add(victory_sprites, player_spr[1][1])
+    end
+
+    victory_sprite_candidates = {player_spr[1][1]}
+    for x in all(npcs) do
+        if body_size(x) < 3 then
+            add(victory_sprite_candidates, x.spr_n[1][1])
+        end
     end
 end
 
@@ -1417,6 +1427,7 @@ function init_level(_level)
 
     if game.level != tutorial_level then
         -- menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
+        if (game.level != last_level) menuitem(1, "skip level", menu_skip_level)
     end
     --music(01)
 end
@@ -1459,27 +1470,21 @@ function init_tiles_and_actors(l)
     end
 end
 
--- Given a level number will return the (x,y) position of the sprite
-function find_sprite(l, spr_n)
+function find_tiles(l, spr_n)
+    local sprites = {}
     for i=0,level_size-1 do
         for j=0,level_size-1 do
-             if get_sprite(i,j,l) == spr_n then
-                return {x = i, y = j}
+            if get_tile(i,j,l) == spr_n then
+                add(sprites, {x = i, y = j})
             end
         end
     end
-    return nil
+    return sprites
 end
 
 function get_tile(x,y,l)
     i = (x + l*level_size) % 128
     j = y + flr(level_size * l / 128)*level_size
-    return mget(i,j)
-end
-
-function get_sprite(x,y,l)
-    i = (x + (2*l+1)*level_size) % 128
-    j = y + flr(level_size * 2*l / 128)*level_size
     return mget(i,j)
 end
 
@@ -1669,14 +1674,44 @@ function draw_splash()
     end
 end
 
-function draw_won()
+function draw_victory()
     cls()
-    thick_print(won_text, 38, vcenter(won_text), 9, 1)
-    if game.tick % (flr(rnd(10)) + 40) == 0 then
-        explode_vfx(
-            {x = mid(6, flr(rnd(16)), 10), y = mid(8, flr(rnd(16)), 8)},
-            9, 2, 40, 30, 60, 1.5, 2.5)
+    pal(red_pal)
+
+    -- draw player reflection
+    for i=1,#victory_sprite_pos do
+        local v_pos = victory_sprite_pos[i]
+        local on_right = v_pos.x*8 > 64
+        local total_switch_time = 180
+        -- switch sprites over time
+        if on_right then
+            local time_per_spr = total_switch_time / #victory_sprite_candidates
+            local tick_window = (game.tick - game.level_end_tick) % total_switch_time
+            local spr_index = flr(tick_window / time_per_spr) + 1
+            victory_sprites[i] = victory_sprite_candidates[spr_index]
+            --[[
+            if tick_window < 120*1/4 then
+            elseif tick_window < 120*2/4  then
+                victory_sprites[i] = victory_sprite_candidates[2]
+            elseif tick_window < 120*3/4  then
+                victory_sprites[i] = victory_sprite_candidates[3]
+            elseif tick_window < 120*4/4  then
+                victory_sprites[i] = victory_sprite_candidates[4]
+            end
+            --]]
+        end
+
+        local v_spr = victory_sprites[i] 
+
+        spr(v_spr, v_pos.x*8, v_pos.y*8, 1, 1, not on_right)
     end
+    pal()
+
+    -- text
+    won_text_1 = "★ thanks for playing ★"
+    won_text_2 = "- sourencho"
+    print(won_text_1, hcenter(won_text_1), 102, 1)
+    print(won_text_2, hcenter(won_text_2), 112, 1)
     draw_particles()
 end
 
@@ -1733,7 +1768,7 @@ function draw_level_splash(l)
 end
 
 function maybe_add_shake(x, y)
-    local speed = slow_speed * 6
+    local speed = slow_speed * 7
     if game.tick % speed < 3 then
         return x, y-1
     elseif game.tick % speed < 4 then
@@ -1977,7 +2012,6 @@ end
 function _init()
     init_splash()
     init_level(game.level)
-    menuitem(1, "skip level", menu_skip_level)
 end
 
 function init_splash()
@@ -2081,14 +2115,6 @@ function update_tutorial()
 end
 
 function update_play()
-    -- check win
-    if change_level == level_count then
-        sfx(11)
-        change_state("won")
-        particles={}
-        return
-    end
-
     -- check level switch
     if game.restart_level then
         init_level(game.level)
@@ -2122,7 +2148,7 @@ function _draw()
     if game.state == "splash" then
         draw_splash()
     elseif  game.state == "won" then
-        draw_won()
+        draw_victory()
     elseif game.state == "level_splash" then
         draw_level_splash(game.level)
     elseif game.state == "restart" then 
@@ -2243,7 +2269,7 @@ dd1da1aa000000000aaaaaa00111111000000000000ee00000eeee000cccccc000cccc0000ffffff
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2466,7 +2492,7 @@ __map__
 505061414162414141424170416161615152275052576170414171414141606162576061714141424242524748486d62414141414141414141414141414141414150515e7e6f7e096e6f6f7e5141507160604115275151576f6e406f6e57614161615152504b604e6f614b514e7e7e5000000000000000000000000000000000
 5150617141606141515041417005506051515151517a614162414141417261616057506071714142425250576161615041416f414171414141414141414241414170517e5f5e4f4e7e5f7e6e51514141617170606151517b6e6e6e6e6f576171611527415151516e6f5151514e7e515100000000000000000000000000000000
 516161606160724151424141705151615140515151674961426241417141606161575060627141415150476d61505143414141414141414141417e414141414141515f6e5152504f5051515e7e514150600542616051476848494e6e476c6041505050415151516f4e51514e4e7e515100000000000000000000000000000000
-6160606061156151275150515151526051515151515157610561606041416160627b60506061055051626749524340734141414141414141704141414141414150526e507071505241517051517051706061616151507a6160576f476d616141500542415151516f7e7e7e7e7e51515100000000000000000000000000000000
+6160606061156151275150515151526051515151515157610561606041416160627b60506061055051626749524340734141414141414141704141414141414150526e507071505241517051517051706061616151507a6160576f476d616141500542405151516f7e7e7e7e7e51515100000000000000000000000000000000
 606161606161515151515050505051525150505250507a6060606060606060606157606261506161615151575173437341414141414141414141414141414141714151424141504141714151414141416061615150515761616a486c616141705050505050515151515151505151515100000000000000000000000000000000
 __sfx__
 000400000653007500005002640000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
