@@ -9,9 +9,9 @@ VERSION = "V0.5.0"
 -- DATA
 
 -- SETTINGS
-start_level = 14
-level_count = 15
+start_level = 13
 last_level = 14
+level_count = last_level + 1
 skip_tutorial = true
 skip_levels = {4, 7, 9}
 
@@ -240,13 +240,6 @@ perm_particles = {}
 
 function pick(ar,k) k=k or #ar return ar[flr(rnd(k))+1] end
 
-function _any(xs, cond)
-    for x in all(xs) do
-        if (cond(x)) return true, x
-    end
-    return false, nil
-end
-
 function _all(xs, cond)
     for x in all(xs) do
         if (not cond(x)) return false
@@ -471,18 +464,18 @@ function v_mults(v, n)
     return {x = v.x * n, y = v.y * n}
 end
 
-function get_tile_class(t)
-    return fget(t)
-end
-
 function get_dynamic_or_static_tile_class(pos)
-    local dynamic_tile = get_tile_class(level_dynamic_tiles[pos.x][pos.y])
+    if not in_bounds(pos) then
+        return nil
+    end
+    local dynamic_tile = fget(level_dynamic_tiles[pos.x][pos.y])
     if (dynamic_tile != ground) return dynamic_tile
-    return get_tile_class(level_static_tiles[pos.x][pos.y])
+    return fget(level_static_tiles[pos.x][pos.y])
 end
 
 -- checks if two actors are made of the same set of animals
 function is_comp_equal(a, b)
+    -- does this sort even work? 
     sort(a.comp, function (x, y) return x > y end)
     sort(b.comp, function (x, y) return x > y end)
 
@@ -593,7 +586,7 @@ end
 function is_static_tile(tile_class, pos)
     if (not in_bounds(pos)) return false
 
-    return get_tile_class(level_static_tiles[pos.x][pos.y]) == tile_class
+    return fget(level_static_tiles[pos.x][pos.y]) == tile_class
 end
 
 
@@ -601,7 +594,7 @@ function is_dynamic_tile(tile_class, pos)
     if (not in_bounds(pos)) return false
 
     -- find out if tile sprite is member of class
-    return get_tile_class(level_dynamic_tiles[pos.x][pos.y]) == tile_class
+    return fget(level_dynamic_tiles[pos.x][pos.y]) == tile_class
 end
 
 function has_move_ability(a, tile_ability)
@@ -993,7 +986,7 @@ end
 
 function init_victory()
     sfx(11)
-    change_state("won")
+    change_state("victory")
     particles={}
 
     -- gather win tiles to spawn final visuals on 
@@ -1427,9 +1420,10 @@ function init_level(_level)
     init_tiles_and_actors(_level)
     init_big_patterns()
 
-    if game.level != tutorial_level then
-        -- menuitem(2,"level: ⬅️ "..change_level.." ➡️", menu_choose_level)
-        if (game.level != last_level) menuitem(1, "skip level", menu_skip_level)
+    if game.level != tutorial_level and game.level <= last_level-1 then
+        menuitem(1, "skip level", menu_skip_level)
+    else
+        menuitem(1)
     end
     --music(01)
 end
@@ -1671,7 +1665,7 @@ function draw_splash()
     local d, r = -game.tick/420, 50
     for i=1,#splash_sprites do
         if (splash_sprite_indexes[i] < splash_red_sprite_count) then pal(red_pal) else pal() end
-        spr(splash_sprites[splash_sprite_indexes[i]], 60 + r * cos(d), 52 + r * sin(d), 1, 1, i % 2 == 0)
+        spr(splash_sprites[splash_sprite_indexes[i]], 60 + r * cos(d), 56 + r * sin(d), 1, 1, i % 2 == 0)
         d += 1 / (#splash_sprites)
     end
 end
@@ -1690,23 +1684,13 @@ function draw_victory()
 
         -- draw sprite
         local on_right = v_pos.x*8 > 64
-        local total_switch_time = 180
+        local total_switch_time = 230
         -- switch sprites over time
         if on_right then
             local time_per_spr = total_switch_time / #victory_sprite_candidates
             local tick_window = (game.tick - game.level_end_tick) % total_switch_time
             local spr_index = flr(tick_window / time_per_spr) + 1
             victory_sprites[i] = victory_sprite_candidates[spr_index]
-            --[[
-            if tick_window < 120*1/4 then
-            elseif tick_window < 120*2/4  then
-                victory_sprites[i] = victory_sprite_candidates[2]
-            elseif tick_window < 120*3/4  then
-                victory_sprites[i] = victory_sprite_candidates[3]
-            elseif tick_window < 120*4/4  then
-                victory_sprites[i] = victory_sprite_candidates[4]
-            end
-            --]]
         end
 
         spr(victory_sprites[i], v_pos.x*8, v_pos.y*8, 1, 1, not on_right)
@@ -1715,7 +1699,7 @@ function draw_victory()
 
     -- text
     won_text_1 = "★ thanks for playing ★"
-    won_text_2 = "- sourencho"
+    won_text_2 = "sourencho"
     print(won_text_1, hcenter(won_text_1), 102, 1)
     print(won_text_2, hcenter(won_text_2), 112, 1)
 end
@@ -1730,8 +1714,7 @@ function draw_level_splash(l)
     local row = 0
     local col = 0
 
-    pal({[8]=0})
-    draw_actor(get_players()[1])
+    --draw_actor(get_players()[1])
 
     -- border
     rect(0,0,127,127,1)
@@ -1857,7 +1840,6 @@ function draw_particles()
     foreach(perm_particles, draw_particle)
 end
 
--- todo: token optimize this
 function draw_ui()
     local players = get_players()
     if _all(players, is_stuck) then
@@ -1877,17 +1859,11 @@ function draw_ui()
             local explain_txt_tiles = ""
 
             local surr_tiles = {}
-            if p.pos.x+1 < 16 then
-                add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(p.pos, RIGHT))])
-            end
-            if p.pos.x-1 > 0 then
-                add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(p.pos, LEFT))])
-            end
-            if p.pos.y+1 < 16 then
-                add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(p.pos, DOWN))])
-            end
-            if p.pos.y-1 > 1 then
-                add(surr_tiles, tile_display_names[get_dynamic_or_static_tile_class(v_addv(p.pos, UP))])
+            for delta in all({UP, DOWN, LEFT, RIGHT}) do 
+                local tc = get_dynamic_or_static_tile_class(v_addv(p.pos, delta))
+                if tc != nil then
+                    add(surr_tiles, tile_display_names[tc])
+                end
             end
 
             surr_tiles = table_dedup(surr_tiles)
@@ -1895,7 +1871,8 @@ function draw_ui()
                 if (i > 1) explain_txt_tiles ..= " or "
                 explain_txt_tiles ..= surr_tiles[i]
             end
-            thick_print(explain_txt_tiles, hcenter(explain_txt_tiles), vcenter(explain_txt_tiles) + 16, 9, 1)
+            thick_print(explain_txt_tiles, 
+                hcenter(explain_txt_tiles), vcenter(explain_txt_tiles) + 16, 9, 1)
         end
     end
 end
@@ -1965,6 +1942,7 @@ end
 
 --[[
 debug = {}
+printh("",DEBUG_OUT_FILE,true)
 function debug.tstr(t, indent)
  indent = indent or 0
  local indentstr = ''
@@ -2046,6 +2024,7 @@ function menu_skip_level()
     end
 end
 
+--[[
 -- todo: update this to show correct level number given skip levels and then re-enable menuitem
 function menu_choose_level(b)
     if (b&1 > 0) change_level -= 1
@@ -2060,6 +2039,7 @@ function menu_choose_level(b)
 
     return true
 end
+--]]
 
 function change_state(s)
     game.state = s
@@ -2080,11 +2060,12 @@ function _update()
         update_tutorial()
     elseif game.state == "level_splash" then
         if (game.tick - game.level_end_tick > 50) game.state = "play"
+        update_level_switch()
     elseif game.state == "restart" then
         if (game.tick - game.level_end_tick > 16) game.state = "play"
     elseif game.state == "play" then
         update_play()
-    elseif game.state == "won" then
+    elseif game.state == "victory" then
         update_particles(particles)
         update_particles(perm_particles)
     end    
@@ -2119,8 +2100,18 @@ function update_tutorial()
     end
 end
 
+function update_level_switch()
+    if change_level != game.level then
+        init_level(change_level)
+        particles = {} 
+        change_state("level_splash")
+        return true
+    end
+    return false
+end
+
 function update_play()
-    -- check level switch
+    -- restart
     if game.restart_level then
         init_level(game.level)
         game.restart_level = false
@@ -2129,12 +2120,7 @@ function update_play()
         return
     end
 
-    if change_level != game.level then
-        init_level(change_level)
-        particles = {} 
-        change_state("level_splash")
-        return
-    end
+    if (update_level_switch()) return
 
     -- play level
     npc_input()
@@ -2152,7 +2138,7 @@ end
 function _draw()
     if game.state == "splash" then
         draw_splash()
-    elseif  game.state == "won" then
+    elseif  game.state == "victory" then
         draw_victory()
     elseif game.state == "level_splash" then
         draw_level_splash(game.level)
