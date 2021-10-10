@@ -9,6 +9,7 @@ VERSION = "V0.5.0"
 -- DATA
 
 -- SETTINGS
+
 start_level = 15
 last_level = 15
 level_count = last_level + 1
@@ -115,6 +116,8 @@ game = {
     level_end_tick = 0,
     restart_level = false,
     state_change_tick = 0,
+    is_stuck = false,
+    stuck_tick = 0,
 }
 
 -- TUTORIAL
@@ -1450,6 +1453,7 @@ function init_level(_level)
     game.tick = game.level_end_tick
     game.level = _level
     change_level = game.level
+    game.is_stuck = false
     init_tiles_and_actors(_level)
     init_big_patterns()
 
@@ -1890,6 +1894,9 @@ end
 function draw_ui()
     local players = get_players()
     if _all(players, is_stuck) then
+        if (not game.is_stuck) game.stuck_tick = game.tick
+        game.is_stuck = true
+        if (game.stuck_tick > game.tick - 120) return
         local stuck_text = "you are stuck"
         thick_print(stuck_text, hcenter(stuck_text), vcenter(stuck_text) - 8, 9, 1)
         stuck_text = "press \151 to restart"
