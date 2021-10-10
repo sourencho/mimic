@@ -1,19 +1,19 @@
 pico-8 cartridge // http://www.pico-8.com
 version 33
 __lua__
--- mimic v0.5.0
+-- mimic v0.5.1
 -- by sourencho
 
-VERSION = "V0.5.0"
+VERSION = "V0.5.1"
 
 -- DATA
 
 -- SETTINGS
 
-start_level = 15
+start_level = 0
 last_level = 15
 level_count = last_level + 1
-skip_tutorial = true
+skip_tutorial = false
 skip_levels = {4, 7, 9, 13, 14}
 
 tutorial_level = 30
@@ -1444,7 +1444,7 @@ function init_level(_level)
         change_state("play")
 
         if _level == 0 then
-            music(-1, 10000)
+            --music(-1, 10000)
             ---music(6, 3000)
         end
     end
@@ -2041,7 +2041,7 @@ function init_splash()
 
     shuffle(splash_sprite_indexes)
 
-    music(2, 10000)
+    --music(2, 10000)
 
     change_state("splash")
 end
