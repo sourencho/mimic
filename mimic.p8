@@ -247,6 +247,13 @@ function _all(xs, cond)
     return true
 end
 
+function _any(xs, cond)
+    for x in all(xs) do
+        if (cond(x)) return true
+    end
+    return false
+end
+
 -- ternary operator
 function tern(cond, T, F)
     if cond then return T else return F end
@@ -1807,9 +1814,13 @@ function draw_level()
     for i=0,level_size-1 do
         for j=0,level_size-1 do
             local x, y = i*8, j*8
-            spr(level_static_tiles[i][j], x, y)
-            if (is_pushable_anywhere({x=i, y=j})) x, y = maybe_add_shake(x, y)
-            spr(level_dynamic_tiles[i][j], x, y)
+            if level_static_tiles[i][j] != ground_spr then
+                spr(level_static_tiles[i][j], x, y)
+            end
+            if level_dynamic_tiles[i][j] != ground_spr then
+                if (is_pushable_anywhere({x=i, y=j})) x, y = maybe_add_shake(x, y)
+                spr(level_dynamic_tiles[i][j], x, y)
+            end
         end
     end
 
@@ -1955,6 +1966,8 @@ end
 
 -- == DEBUG pico-kit ==
 
+--[[
+
 function debug_print_big()
     for k,v in pairs(animal_big_patterns) do
         debug.print(k[1].display_name..".."..k[2].display_name)
@@ -1993,6 +2006,8 @@ function debug.print(...)
   end
  end
 end
+
+--]]
 
 -- == GAME LOOP ==
 
@@ -2135,7 +2150,11 @@ function update_play()
     update_big_patterns()
     update_particles(particles)
     update_particles(perm_particles)
-    mimic()
+
+    if _any(actors, moved) then
+        mimic()
+    end
+
     post_update_actors()
 end
 
