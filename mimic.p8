@@ -10,7 +10,7 @@ VERSION = "V0.5.1"
 
 -- SETTINGS
 
-start_level = 6
+start_level = 3
 last_level = 15
 level_count = last_level + 1
 skip_tutorial = true
@@ -32,10 +32,12 @@ splash_keys_3 = "start \151"
 level_size = 16
 ACTOR_ID_INDEX = 0
 
+--[[
 debug_mode = false
 DEBUG_OUT_FILE = "out.txt"
 SHOW_STATS = false
 debug = "DEBUG\n"
+--]]
 
 -- spr numbers 2x2 matrix to support large sprites
 fish_spr = {{7, nil}, {nil, nil}}
@@ -75,27 +77,6 @@ ground_spr = 65
 static_tiles= {tree, water, rock, ground, win, cloud, teru, 
                secret_win, flower1, flower2, flower3, flower4, grass1, grass2}
 dynamic_tiles = {rock_small, tree_small, cloud_small}
-
--- todo: dynamically generate this on map tile read
-tile_sprites = {
-    [tree] = 96,
-    [tree_small] = 98,
-    [water] = 72,
-    [rock] = 80,
-    [rock_small] = 82,
-    [ground] = 65,
-    [cloud] = 99,
-    [cloud_small] = 67,
-    [teru] = 111,
-    [win] = 64,
-    [secret_win] = 124,
-    [flower1] = 44,
-    [flower2] = 60,
-    [flower3] = 61,
-    [flower4] = 62,
-    [grass1] = 42,
-    [grass2] = 59
-}
 
 tile_display_names = {
     [tree] = "trees",
@@ -940,9 +921,6 @@ function player_input()
         -- prevent diagonal movement
         if (p.delta.x != 0) p.delta.y = 0
     end
-    if (btnp(4) and debug_mode) then
-        -- debug cmd
-    end
     if (btnp(5)) then
         if game.state == "splash" then
             change_state("tutorial")
@@ -1464,6 +1442,7 @@ end
 
 -- Loads in level by populating 2d array of tiles `level_static_tiles` and `level_dynamic_tiles`
 function init_tiles_and_actors(l)
+    tile_sprites = {}
     for i=0,level_size-1 do
         level_static_tiles[i] = {}
         level_dynamic_tiles[i] = {}
@@ -1473,6 +1452,9 @@ function init_tiles_and_actors(l)
             local tile_class = fget(tile_spr)
             local tile_pos = {x=i, y=j}
             local dynamic_spr, static_spr
+
+            tile_sprites[tile_class] = tile_spr
+
             if contains(dynamic_tiles, tile_class) then
                 dynamic_spr = tile_spr
                 static_spr = ground_spr
@@ -2218,8 +2200,8 @@ dd1da1aa000000000aaaaaa00111111000000000000ee00000eeee000cccccc000cccc0000bbbbbb
 011990099119900011990000000119900119900000000000000000000f0000f000ff00ff00000000000000000000400000000000220220002202200000000000
 01199000011990001199000000011990011990000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 011990000119900011990000000119900119900000b00bb0000b00b0000000000000000000000000099900090000000000999000888000000000ccc009000900
-011990000119900011990000000119900119900000bbbb00000bbbb00000000000000000000000009909909900000000ee9a900082800888ccc0cdc009909900
-0119900001199000119911101111199001199000bbbbbb000bbbbbb00000000000000000000000009000999000000030ef99933388800828cdc0ccc000999000
+011990000119900011990000000119900119900000bbbb00000bbbb00000000000000000000000009909909900000000ee9a900082800888ccc0c1c009909900
+0119900001199000119911101111199001199000bbbbbb000bbbbbb00000000000000000000000009000999000000030ef99933388800828c1c0ccc000999000
 0119900001199000119911101111199001199000bbbbbb000bbbbbb00000000000000000000000000000000000300300eee883b300303888ccc0300000000000
 011990000119900001999990009999900119900000bbbb00000bbbb0000000000000000000000000000000000303030000082333000300000033300000000000
 000990000009900000099990009999900009900000b00bb0000b00b0000000000000000000000000000000000003000000088800000300000003000000000000
