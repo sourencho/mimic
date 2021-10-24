@@ -35,7 +35,6 @@ ACTOR_ID_INDEX = 0
 --[[
 debug_mode = false
 DEBUG_OUT_FILE = "out.txt"
-SHOW_STATS = false
 debug = "DEBUG\n"
 --]]
 
@@ -44,7 +43,6 @@ fish_spr = {{7, nil}, {nil, nil}}
 sheep_spr = {{39, nil}, {nil, nil}}
 butter_spr = {{21, nil}, {nil, nil}}
 bird_spr = {{23, nil}, {nil, nil}}
-frog_spr = {{53, nil}, {nil, nil}}
 vishab_spr = {{9, 11}, {nil, nil}}
 aralez_spr = {{25, 27}, {nil, nil}}
 
@@ -164,14 +162,6 @@ npcs = {
         move_abilities = {cloud, cloud_small, win},
         push_abilities = {},
         display_name = "bird",
-        shape = {1, 1}
-    },
-    {
-        spr_n = frog_spr,
-        pattern = {UP, LEFT, UP, DOWN , RIGHT, DOWN},
-        move_abilities = {ground, water, win},
-        push_abilities = {tree_small, rock_small},
-        display_name = "frog",
         shape = {1, 1}
     },
     {
