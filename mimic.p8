@@ -10,7 +10,7 @@ VERSION = "V0.6.0"
 
 -- SETTINGS
 
-start_level = 3
+start_level = 0
 last_level = 15
 level_count = last_level + 1
 skip_tutorial = true
