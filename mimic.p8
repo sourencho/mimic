@@ -1,10 +1,10 @@
 pico-8 cartridge // http://www.pico-8.com
 version 33
 __lua__
- -- mimic v0.6.4
+ -- mimic v1.0.0
 -- by sourencho
 
-VERSION = "V0.6.4"
+VERSION = "V1.0.0"
 
 -- DATA
 
