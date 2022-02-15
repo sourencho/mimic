@@ -1,10 +1,10 @@
 pico-8 cartridge // http://www.pico-8.com
 version 33
 __lua__
---mimic v1.0.0
+--mimic v1.1.0
 --by sourencho
 
-VERSION = "V1.0.0"
+VERSION = "V1.1.0"
 
 -- DATA
 
@@ -78,17 +78,9 @@ tile_display_names = {
     [water] = "water",
     [rock] = "rocks",
     [rock_small] = "rocks",
-    [ground] = "ground",
     [cloud] = "cloud",
     [cloud_small] = "cloud",
     [teru] = "manish",
-    [flower1] = "ground",
-    [flower2] = "ground",
-    [flower3] = "ground",
-    [flower4] = "ground",
-    [flower5] = "ground",
-    [grass1] = "ground",
-    [grass2] = "ground"
 }
 
 UP =    {x= 0, y =-1}
@@ -100,8 +92,8 @@ STILL = {x= 0, y = 0}
 
 DELTAS = {UP, DOWN, LEFT, RIGHT}
 
-def_pal = {1,2,3,4,5,6,7,8,9,10,"-5",12,13,14,15}
-red_pal = {1,2,3,4,5,8,7,8,8,10,8   ,8,8,8,8}
+def_pal = split("1,2,3,4,5,6,7,8,9,10,-5,12,13,14,15")
+red_pal = split("1,2,3,4,5,8,7,8,8,10,8,8,8,8,8")
 
 -- GAME
 
@@ -185,39 +177,31 @@ animal_big_patterns = {
     -- {a, b} = {
     --      [12] = { {dx1, dy1}, {dx2, dy2} },
     --      [21] = { ... },
-    -- } 
+    -- }
 }
 
 -- == SFX ==
 
-player_sfx={}
-player_sfx.move={}
-player_sfx.move[ground]=1
-player_sfx.move[flower1]=1
-player_sfx.move[flower2]=1
-player_sfx.move[flower3]=1
-player_sfx.move[flower4]=1
-player_sfx.move[flower5]=1
-player_sfx.move[tree]=3
-player_sfx.move[tree_small]=3
-player_sfx.move[rock]=4
-player_sfx.move[rock_small]=4
-player_sfx.move[water]=5
-player_sfx.move[cloud]=9
-player_sfx.move[cloud_small]=9
-player_sfx.move[teru]=8
-player_sfx.transform=2
-die_sfx=8
-change_pattern_sfx = 10
-transform_sfx = 2
+player_sfx={
+    [ground]=1,
+    [flower1]=1,
+    [flower2]=1,
+    [flower3]=1,
+    [flower4]=1,
+    [flower5]=1,
+    [tree]=3,
+    [tree_small]=3,
+    [rock]=4,
+    [rock_small]=4,
+    [water]=5,
+    [cloud]=9,
+    [cloud_small]=9,
+    [teru]=8
+}
 
-function play_player_sfx(action)
+function play_player_sfx()
     for p in all(get_players()) do
-        if(action == "move") then
-            sfx(player_sfx[action][get_dynamic_or_static_tile_class(p.pos)])
-        else
-            sfx(player_sfx[action])
-        end
+        sfx(player_sfx[get_dynamic_or_static_tile_class(p.pos)])
     end
 end
 
@@ -238,8 +222,6 @@ particles = {
 perm_particles = {}
 
 -- == UTIL ==
-
-function pick(ar,k) k=k or #ar return ar[flr(rnd(k))+1] end
 
 function _all(xs, cond)
     for x in all(xs) do
@@ -337,18 +319,18 @@ function get_perp_moves(move)
 end
 
 function pair_equal(a, b)
-    if (a == nil and b == nil) then
+    if a == nil and b == nil then
         return true
     elseif a == nil or b == nil then
         return false
-    elseif (a[1] == b[1] and a[2] == b[2]) then
+    elseif a[1] == b[1] and a[2] == b[2] then
         return true
     else
         return false
     end
 end
 
-function  pos_equal(a, b) 
+function  pos_equal(a, b)
     return a.x == b.x and a.y == b.y
 end
 
@@ -377,18 +359,18 @@ end
 
 -- returns array of start and end pos of lines that form a tile
 function get_tile_lines(t)
-    r = t.x
-    c = t.y
+    local r,c = t.x, t.y
+    local r8, c8 = r*8,c*8 
     return {
-        bot = {{r*8, c*8}, {r*8 + 8, c*8}},
-        right = {{r*8 + 8, c*8}, {r*8 + 8, c*8 + 8}},
-        top = {{r*8 + 8, c*8 + 8}, {r*8, c*8 + 8}},
-        left = {{r*8, c*8 + 8}, {r*8, c*8}},
+        bot = {{r8, c8}, {r8 + 8, c8}},
+        right = {{r8 + 8, c8}, {r8 + 8, c8 + 8}},
+        top = {{r8 + 8, c8 + 8}, {r8, c8 + 8}},
+        left = {{r8, c8 + 8}, {r8, c8}},
     }
 end
 
 function are_tiles_adj(t1, t2)
-    if (abs(t1.x - t2.x) + abs(t1.y - t2.y) == 1) then
+    if abs(t1.x - t2.x) + abs(t1.y - t2.y) == 1 then
         return true
     else
         return false
@@ -630,7 +612,7 @@ end
 
 function valid_move_static(pos, a)
     for t in all(static_tiles) do
-        if(is_static_tile(t, pos) and has_move_ability(a, t)) then
+        if is_static_tile(t, pos) and has_move_ability(a, t) then
             return true
         end
     end
@@ -639,7 +621,7 @@ end
 
 function valid_move_dynamic(pos, a)
     for t in all(dynamic_tiles) do
-        if(is_dynamic_tile(t, pos) and has_move_ability(a,t)) then
+        if is_dynamic_tile(t, pos) and has_move_ability(a,t) then
             return true
         end
     end
@@ -648,7 +630,6 @@ end
 
 function can_push(pos, a)
     if (not in_bounds(pos)) return false
-    
     -- For all tile types, check if this tile is of that type and actor has ability to move
     for t in all(dynamic_tiles) do
         if(is_dynamic_tile(t, pos) and has_push_ability(a, t)) then
@@ -739,23 +720,20 @@ end
 function npc_die(a)
     a.t = 0
     del(actors, a)
-    sfx(die_sfx)
+    sfx(8)
 end
 
 function npc_input()
     for a in all(actors) do
-        if not a.is_player then
-            -- apply npc pattern
-            if pos_equal(a.delta, STILL) then
-                if game.tick % slow_speed == 0 then
-                    move = npc_get_move(a)
-                    if pos_equal(move, STILL) then
-                        npc_die(a)
-                    else
-                        a.delta = copy_pos(move)
-                        a.last_move = copy_pos(move)
-                    end
-                end
+        if not a.is_player and
+           pos_equal(a.delta, STILL) and
+           game.tick % slow_speed == 0 then
+            move = npc_get_move(a)
+            if pos_equal(move, STILL) then
+                npc_die(a)
+            else
+                a.delta = copy_pos(move)
+                a.last_move = copy_pos(move)
             end
         end
     end
@@ -780,7 +758,7 @@ function update_pattern(a, new_move)
 
     -- vfx
     local frame_len = #a.pattern - 1
-    sfx(change_pattern_sfx)
+    sfx(10)
     transform_vfx(a, get_spr_col(a.spr), 60, get_spr_col(a.spr_2))
 end
 
@@ -884,7 +862,7 @@ function no_npc()
     return #actors == 1
 end
 
--- == PLAYER == 
+-- == PLAYER ==
 
 player_spr = {{5, nil}, {nil, nil}}
 
@@ -1006,7 +984,7 @@ function init_big_patterns()
     for i=1,#actors-1 do
         for j=i+1,#actors do
             local a, b = actors[i], actors[j]
-            if (body_size(a) < 3 and body_size(b) < 3) then
+            if body_size(a) < 3 and body_size(b) < 3 then
                 local maybe_player, other = maybe_get_player_and_other(a, b)
                 local init_pattern = create_table_of_xs(OTHER, #maybe_player.pattern)
                 animal_big_patterns[{actors[i], actors[j]}] =
@@ -1076,10 +1054,11 @@ function animal_big_mimic()
                             elseif a.is_player then
                                 -- big player into two small players
                                 to_add, to_del = transform_big_player(a, a1, a2)
-                            elseif (#a.comp < 3) then 
+                            elseif (#a.comp < 3) then
                                 -- two small actors into one big actor
-                                to_add, to_del = merge_into_big_animal(a, a1, a2)
-                            end 
+                                -- commenting because none of the v1 levels use this mechanic
+                                -- to_add, to_del = merge_into_big_animal(a, a1, a2)
+                            end
                             actors_to_add = table_concat(actors_to_add, to_add)
                             actors_to_del = table_concat(actors_to_del, to_del)
                             goto cont
@@ -1092,11 +1071,11 @@ function animal_big_mimic()
         ::cont::
     end
 
-    foreach(actors_to_del, function(x) del(actors, x) end) 
-    foreach(actors_to_add, function(x) add(actors, x) end) 
+    foreach(actors_to_del, function(x) del(actors, x) end)
+    foreach(actors_to_add, function(x) add(actors, x) end)
 
     -- reset patterns
-    if #actors_to_add + #actors_to_del > 0 then 
+    if #actors_to_add + #actors_to_del > 0 then
         init_big_patterns()
     end
 
@@ -1161,7 +1140,7 @@ function transform_animal(a, other, new_pos)
     if (new_pos != nil) then
         a.pos = new_pos
     end
-    play_player_sfx("transform")
+    sfx(2)
     a.shape = other.shape
     a.move_abilities = copy_table(other.move_abilities)
     a.push_abilities = copy_table(other.push_abilities)
@@ -1220,7 +1199,7 @@ function transform_big_player(a, o1, o2)
     reset_player_pattern(new_o2)
 
     -- fx
-    play_player_sfx("transform")
+    sfx(2)
     transform_vfx(o1, 8, 20)
     transform_vfx(o2, 8, 20)
     transform_vfx(a, get_spr_col(o1.spr), 20, get_spr_col(o2.spr))
@@ -1232,6 +1211,8 @@ function transform_big_player(a, o1, o2)
     return {new_o1, new_o2}, {a}
 end
 
+-- commenting because none of the v1 levels use this mechanic
+--[[
 -- currently hardcoded to only work for shape {2,1}
 function merge_into_big_animal(a, o1, o2)
     -- make sure o1 is pointing to the top_left one
@@ -1285,7 +1266,7 @@ function merge_into_big_animal(a, o1, o2)
     )
 
     -- fx
-    play_player_sfx("transform")
+    sfx(2)
     transform_vfx(o1, get_spr_col(a.spr), 20)
     transform_vfx(o2, get_spr_col(a.spr), 20)
     transform_vfx(a, get_spr_col(o1.spr), 20, get_spr_col(o2.spr))
@@ -1296,6 +1277,7 @@ function merge_into_big_animal(a, o1, o2)
 
     return {new_big, new_o1, new_o2}, {o1, o2, a}
 end
+--]]
 
 function merge_animals(a, b)
     local merged_move_abilities = table_concat(a.move_abilities, b.move_abilities)
@@ -1328,7 +1310,7 @@ function animal_mimic()
                     transform_player(b, a)
                 elseif #a.comp < 2 and #b.comp < 2 then
                     merge_animals(a, b)
-                    play_player_sfx("transform")
+                    sfx(2)
                     transform_vfx(a, get_spr_col(b.spr), 20, get_spr_col(a.spr_2))
                     transform_vfx(b, get_spr_col(a.spr), 20, get_spr_col(b.spr_2))
                 end
@@ -1547,11 +1529,11 @@ function fuzz_line_vfx(l, col, dur, col2, speed, max_size)
 end
 
 function draw_fuzz(pos, col, curr_tick, start_tick, end_tick, meta_data)
-    if (curr_tick - start_tick) % meta_data["speed"] == 1 then
-        meta_data["dx"] = flr(rnd(3)) - 1
-        meta_data["dy"] = flr(rnd(3)) - 1
+    if (curr_tick - start_tick) % meta_data.speed == 1 then
+        meta_data.dx = flr(rnd(3)) - 1
+        meta_data.dy = flr(rnd(3)) - 1
     end
-    circfill(pos.x + meta_data["dx"], pos.y + meta_data["dy"], meta_data["size"], col)
+    circfill(pos.x + meta_data.dx, pos.y + meta_data.dy, meta_data.size, col)
 end
 
 function draw_spark(pos, col, curr_tick, start_tick, end_tick, meta_data)
@@ -1563,7 +1545,7 @@ end
 
 function draw_heart(pos, col, curr_tick, start_tick, end_tick, meta_data)
     local waver = game.tick % 4
-    if (game.tick % 8) < 4 then waver *= -1 end 
+    if (game.tick % 8) < 4 then waver *= -1 end
     waver += ({[true]=1,[false]=-1})[(rnd() > 0.5)]*flr(rnd(1))
     print("\135", pos.x + (waver - 4), pos.y - (curr_tick - start_tick), 8)
 end
@@ -1658,7 +1640,7 @@ function explode_vfx(pos, cols, size, count, min_dur, max_dur, min_spd, max_spd)
     for i=0,count do
         spark = {
             pos = {x = pos.x*8 + 4, y = pos.y*8 + 4},
-            col = pick(cols),
+            col = rnd(cols),
             draw_fn = draw_spark,
             start_tick = game.tick,
             end_tick = game.tick + rnd(max_dur - min_dur) + min_dur,
@@ -1710,7 +1692,7 @@ function draw_splash()
 end
 
 function draw_win()
-    for p in all(get_players()) do 
+    for p in all(get_players()) do
         if (on_win(p)) explode_vfx(p.pos, {10}, 1, 2, 6, 9, 0.3, 1)
     end
 end
@@ -1782,7 +1764,7 @@ function draw_level_splash(l)
         -- draw
         if level_text == secret_level-1 then
             draw_text = "??"
-        else 
+        else
             draw_text = level_text
         end
         print(tern(draw_text != "??" and level_text < 10, "0"..draw_text, draw_text),
@@ -1794,7 +1776,7 @@ function draw_level_splash(l)
 
         if i == level_count-1 then
             local win_clr = 1
-            if (i == l) win_clr = 10 
+            if (i == l) win_clr = 10
             print('★', x + col_size/2 - 2, y + row_size/2 + 6, win_clr)
         end
 
@@ -1863,7 +1845,7 @@ function draw_actor(a)
                 -- sspr formula from https://pico-8.fandom.com/wiki/Sspr
                 local a_sx, a_sy = ((spr_n + a.frame) % 16) * 8, ((spr_n + a.frame) \ 16) * 8
                 local b_sx, b_sy = ((spr_n_2 + a.frame) % 16) * 8, ((spr_n_2 + a.frame) \ 16) * 8
-                if (a.flip_x) then 
+                if a.flip_x then
                     sspr(a_sx, a_sy, 4, 8 , ax + 4, ay, 4, 8, a.flip_x)
                     sspr(b_sx + 4, b_sy, 4, 8 , ax, ay, 4, 8, a.flip_x)
                 else
@@ -1923,7 +1905,7 @@ function draw_ui()
             for delta in all({UP, DOWN, LEFT, RIGHT}) do 
                 local tc = get_dynamic_or_static_tile_class(v_addv(p.pos, delta))
                 if tc != nil then
-                    add(surr_tiles, tile_display_names[tc])
+                    add(surr_tiles, tile_display_names[tc] or "ground")
                 end
             end
 
@@ -2018,8 +2000,6 @@ end
 function change_state(s)
     game.state = s
     game.change_state_tick = game.tick
-
-    printh(s)
 end
 
 function _update()
@@ -2042,7 +2022,7 @@ function _update()
     elseif game.state == "victory" then
         update_particles(particles)
         update_particles(perm_particles)
-    end    
+    end
 end
 
 skip_countdown = #TUTORIAL_MOVES
@@ -2122,7 +2102,7 @@ function _draw()
         draw_victory()
     elseif game.state == "level_splash" then
         draw_level_splash(game.level)
-    elseif game.state == "restart" then 
+    elseif game.state == "restart" then
         draw_restart()
     elseif game.state == "play" or game.state == "tutorial" then
         draw_play()
