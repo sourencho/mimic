@@ -1,10 +1,10 @@
 pico-8 cartridge // http://www.pico-8.com
 version 34
 __lua__
---mimic v1.1.0
+--mimic v1.1.c
 --by sourencho
 
-VERSION = "V1.1.0"
+VERSION = "V1.1.c"
 
 -- DATA
 
@@ -103,7 +103,7 @@ level_static_tiles = {}
 level_dynamic_tiles = {}
 
 game = {
-    state = "splash",
+    state = "coolmathgames",
     level = tutorial_level,
     tick = 0,
     level_end_tick = 0,
@@ -1660,6 +1660,24 @@ end
 
 -- == DRAW ==
 
+function draw_coolmathgames()
+    cls()
+    circfill(64,63,15,12)
+    ovalfill(38,58,90,70,11)
+    local coolmath = "coolmath"
+    local games = "games"
+    p4bonus(coolmath,hcenter(coolmath),58,8,10)
+    p4bonus(games,hcenter(games)+1,66,8,10)
+    local coolmathgames = "coolmathgames.com"
+    print(coolmathgames, hcenter(coolmathgames)+2, 114, 7)
+end
+
+function p4bonus(s,x,y,c,o) -- 34 tokens, 5.7 seconds
+    color(o)
+    ?'\-f'..s..'\^g\-h'..s..'\^g\|f'..s..'\^g\|h'..s,x,y
+    ?s,x,y,c
+end
+
 function draw_splash()
     cls()
     pal()
@@ -1966,7 +1984,7 @@ end
 
 -- == GAME LOOP ==
 
-function _init()
+function init_game()
     cartdata("sourencho_mimic_v110")
     start_level = dget(0)
     if start_level > 0 and start_level != tutorial_level then
@@ -2023,7 +2041,10 @@ function _update()
 
     player_input()
 
-    if game.state == "splash" then
+    if game.state == "coolmathgames" then
+        -- noop
+        if (game.tick > 50) init_game()
+    elseif game.state == "splash" then
         -- noop
     elseif game.state == "tutorial" then
         update_tutorial()
@@ -2112,7 +2133,9 @@ function update_play()
 end
 
 function _draw()
-    if game.state == "splash" then
+    if game.state == "coolmathgames" then
+        draw_coolmathgames()
+    elseif game.state == "splash" then
         draw_splash()
     elseif  game.state == "victory" then
         draw_victory()
