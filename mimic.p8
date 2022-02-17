@@ -1987,6 +1987,9 @@ end
 function init_game()
     cartdata("sourencho_mimic_v110")
     start_level = dget(0)
+    if start_level == 0 then
+        start_level = tutorial_level
+    end
     if start_level > 0 and start_level != tutorial_level then
         skip_tutorial = true
         change_state("level_splash")
